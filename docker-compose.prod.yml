@@ -1,0 +1,17 @@
+services:
+  app:
+    build: .
+    image: spritz-rsvp:latest
+    container_name: spritz-app
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8035:8000"
+    volumes:
+      - ./books:/app/books
+    environment:
+      TZ: America/Montevideo
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

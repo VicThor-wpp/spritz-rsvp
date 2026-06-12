@@ -1,0 +1,129 @@
+# Spritz RSVP — Production Deploy
+
+Target: **`spritz.yr.com.uy`** → VPS at `64.23.146.116` → container on `127.0.0.1:8035`.
+
+## Architecture
+
+```
+Internet
+  │
+  ▼
+[ nginx (host, :443) ] ── SSL termination via Let's Encrypt
+  │
+  ▼
+[ docker container spritz-app ] ── uvicorn :8000 inside, bound to :8035 on host
+  │
+  ▼
+[ ./books/ volume ] ── persistent JSON storage
+```
+
+## One-time setup
+
+### 1. DNS
+
+Add A record at your DNS provider for `yr.com.uy`:
+
+| Type | Name | Value | TTL |
+|---|---|---|---|
+| A | spritz | 64.23.146.116 | 300 |
+
+Verify propagation (may take 5-30 min):
+
+```bash
+dig +short spritz.yr.com.uy
+# should output: 64.23.146.116
+```
+
+### 2. Server setup
+
+Confirm port 8035 is free:
+
+```bash
+ssh root@64.23.146.116 'ss -tln | grep ":8035 " && echo PORT_USED || echo PORT_FREE'
+# expected: PORT_FREE
+```
+
+Clone the repo on the server:
+
+```bash
+ssh root@64.23.146.116 'git clone https://github.com/VicThor-wpp/spritz-rsvp.git /root/spritz'
+```
+
+Install nginx vhost (HTTP only — certbot will add SSL automatically):
+
+```bash
+scp deploy/nginx-spritz.conf root@64.23.146.116:/etc/nginx/sites-available/spritz
+ssh root@64.23.146.116 '\
+  ln -sf /etc/nginx/sites-available/spritz /etc/nginx/sites-enabled/spritz && \
+  nginx -t && systemctl reload nginx'
+```
+
+Obtain SSL certificate:
+
+```bash
+ssh root@64.23.146.116 'certbot --nginx -d spritz.yr.com.uy --non-interactive --agree-tos --email admin@yr.com.uy --redirect'
+```
+
+### 3. Build and run
+
+```bash
+ssh root@64.23.146.116 'cd /root/spritz && \
+  docker compose -f docker-compose.prod.yml build && \
+  docker compose -f docker-compose.prod.yml up -d'
+```
+
+### 4. Verify
+
+```bash
+ssh root@64.23.146.116 'curl -fsS http://127.0.0.1:8035/api/books'
+curl -fsS https://spritz.yr.com.uy/api/books
+# both should return: []
+```
+
+## Subsequent deploys
+
+```bash
+ssh root@64.23.146.116 'cd /root/spritz && \
+  git pull && \
+  docker compose -f docker-compose.prod.yml build && \
+  docker compose -f docker-compose.prod.yml up -d'
+```
+
+## Operations
+
+```bash
+ssh root@64.23.146.116 'docker logs -f spritz-app'
+
+ssh root@64.23.146.116 'cd /root/spritz && docker compose -f docker-compose.prod.yml ps'
+
+ssh root@64.23.146.116 'cd /root/spritz && docker compose -f docker-compose.prod.yml restart app'
+
+ssh root@64.23.146.116 'cd /root/spritz && docker compose -f docker-compose.prod.yml down'
+```
+
+## Persistent data
+
+Books live at `/root/spritz/books/` on the host, mounted to `/app/books/` in the container.
+
+- Survives `docker compose down/up`
+- Survives `docker compose build` (no rebuild of volume)
+- Survives `git pull` (books/ is gitignored)
+
+Backup:
+
+```bash
+rsync -av root@64.23.146.116:/root/spritz/books/ ./books-backup-$(date +%F)/
+```
+
+## Install on Android (PWA)
+
+1. Open `https://spritz.yr.com.uy/` in Chrome on Android
+2. Tap menu (⋮) → **"Install app"** or **"Add to Home screen"**
+3. The Spritz icon appears on your home screen as a standalone app
+4. Open any other app, tap **Share**, scroll → **Spritz RSVP** appears in the share targets
+
+### Share Target supports:
+
+- **URLs**: from browsers, X/Twitter, Reddit — auto-extracts article text
+- **Plain text**: from any text selection or note — loads as readable text
+- **Files**: PDF and EPUB — uploads directly to your library
