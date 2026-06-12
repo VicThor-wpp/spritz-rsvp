@@ -1,5 +1,10 @@
-const CACHE = "spritz-v3";
-const ASSETS = ["/", "/manifest.json"];
+const CACHE = "spritz-v4";
+const ASSETS = [
+  "/",
+  "/manifest.webmanifest",
+  "/icons/icon-192.png",
+  "/icons/icon-512.png",
+];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)));

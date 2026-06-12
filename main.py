@@ -15,7 +15,7 @@ import fitz  # PyMuPDF
 import requests
 import trafilatura
 from fastapi import FastAPI, Request, UploadFile, File
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 # --- Logging -------------------------------------------------------------
@@ -396,6 +396,30 @@ async def upload(file: UploadFile = File(...)) -> JSONResponse:
 @app.post("/share-target")
 async def share_target_fallback():
     return RedirectResponse(url="/", status_code=303)
+
+
+# --- Manifest -----------------------------------------------------------
+# Chrome Android requires application/manifest+json to mint a WebAPK
+# (and therefore to register the share target). Plain application/json
+# from the static mount is not enough on some Chrome versions.
+
+
+def _manifest_response() -> FileResponse:
+    return FileResponse(
+        str(STATIC / "manifest.json"),
+        media_type="application/manifest+json",
+        headers={"Cache-Control": "no-cache"},
+    )
+
+
+@app.get("/manifest.webmanifest", include_in_schema=False)
+async def manifest_webmanifest():
+    return _manifest_response()
+
+
+@app.get("/manifest.json", include_in_schema=False)
+async def manifest_json():
+    return _manifest_response()
 
 
 # --- Static files (PWA) -------------------------------------------------
