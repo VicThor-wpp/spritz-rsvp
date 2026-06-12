@@ -15,7 +15,7 @@ import fitz  # PyMuPDF
 import requests
 import trafilatura
 from fastapi import FastAPI, Request, UploadFile, File
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 # --- Logging -------------------------------------------------------------
@@ -385,6 +385,17 @@ async def upload(file: UploadFile = File(...)) -> JSONResponse:
     except Exception as exc:
         logger.exception("Upload failed: %s", filename)
         return JSONResponse({"error": str(exc)}, status_code=500)
+
+
+# --- Share Target fallback ----------------------------------------------
+# The Service Worker normally intercepts POST /share-target. If the SW is not
+# active yet (first install, update pending), the POST hits the backend.
+# Redirecting to "/" surfaces the home page so the user is not stranded on a 404.
+
+
+@app.post("/share-target")
+async def share_target_fallback():
+    return RedirectResponse(url="/", status_code=303)
 
 
 # --- Static files (PWA) -------------------------------------------------

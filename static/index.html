@@ -768,10 +768,28 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden&&app.bookId
 // Resize
 window.addEventListener('resize',()=>{if($('#view-reader').classList.contains('active'))applySplit();});
 
-// Share target
-const params=new URLSearchParams(location.search);
-const sharedUrl=params.get('url')||params.get('text');
-if(sharedUrl){urlInput.value=sharedUrl;history.replaceState(null,'','/');showView('view-input');extractUrl();}
+(function handleShareParams(){
+  const params = new URLSearchParams(location.search);
+  const sharedUrl = params.get('url');
+  const sharedText = params.get('text');
+  const sharedBook = params.get('book');
+  const shareError = params.get('share-error');
+  if (!sharedUrl && !sharedText && !sharedBook && !shareError) return;
+  history.replaceState(null, '', '/');
+  if (shareError) { showToast('Error compartiendo: ' + shareError); return; }
+  if (sharedBook) { openBook(sharedBook); return; }
+  if (sharedUrl) {
+    urlInput.value = sharedUrl;
+    showView('view-input');
+    extractUrl();
+    return;
+  }
+  if (sharedText) {
+    textInput.value = sharedText;
+    showView('view-input');
+    showToast('Texto recibido. Tocá "Leer" para empezar.', 'info', 3000);
+  }
+})();
 
 // SW
 if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');

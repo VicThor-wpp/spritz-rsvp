@@ -1,4 +1,4 @@
-const CACHE = "spritz-v2";
+const CACHE = "spritz-v3";
 const ASSETS = ["/", "/manifest.json"];
 
 self.addEventListener("install", (e) => {
@@ -18,23 +18,8 @@ self.addEventListener("activate", (e) => {
 self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
 
-  if (
-    e.request.method === "POST" &&
-    url.pathname === "/" &&
-    e.request.headers.get("content-type")?.includes("application/x-www-form-urlencoded")
-  ) {
-    e.respondWith(
-      e.request
-        .formData()
-        .then((fd) => {
-          const sharedUrl = fd.get("url") || fd.get("text") || "";
-          return Response.redirect("/?url=" + encodeURIComponent(sharedUrl), 303);
-        })
-        .catch((err) => {
-          console.error("[sw] share target formData failed:", err);
-          return Response.redirect("/", 303);
-        })
-    );
+  if (e.request.method === "POST" && url.pathname === "/share-target") {
+    e.respondWith(handleShareTarget(e.request));
     return;
   }
 
@@ -51,3 +36,43 @@ self.addEventListener("fetch", (e) => {
     })
   );
 });
+
+async function handleShareTarget(request) {
+  try {
+    const fd = await request.formData();
+    const file = fd.get("file");
+    const text = (fd.get("text") || "").trim();
+    const sharedUrl = (fd.get("url") || "").trim();
+    const title = (fd.get("title") || "").trim();
+
+    if (file && file.size > 0) {
+      const uploadFd = new FormData();
+      uploadFd.append("file", file, file.name || "shared");
+      const resp = await fetch("/api/upload", { method: "POST", body: uploadFd });
+      let data = null;
+      try { data = await resp.json(); } catch { /* non-JSON body — fall through to error path */ }
+      if (resp.ok && data && data.id) {
+        return Response.redirect("/?book=" + encodeURIComponent(data.id), 303);
+      }
+      const errMsg = (data && data.error) || ("HTTP " + resp.status);
+      return Response.redirect("/?share-error=" + encodeURIComponent(errMsg), 303);
+    }
+
+    if (sharedUrl) {
+      return Response.redirect("/?url=" + encodeURIComponent(sharedUrl), 303);
+    }
+
+    if (text) {
+      if (/^https?:\/\/\S+/i.test(text)) {
+        return Response.redirect("/?url=" + encodeURIComponent(text), 303);
+      }
+      const payload = title ? title + "\n\n" + text : text;
+      return Response.redirect("/?text=" + encodeURIComponent(payload), 303);
+    }
+
+    return Response.redirect("/", 303);
+  } catch (err) {
+    console.error("[sw] share-target handler failed:", err);
+    return Response.redirect("/?share-error=" + encodeURIComponent(err.message || "share failed"), 303);
+  }
+}
