@@ -1,5 +1,25 @@
 # Spritz RSVP — Production Deploy
 
+## Current deployment (temporary)
+
+While the DNS for `spritz.yr.com.uy` is not yet set up, the app reuses the
+existing `thefuture100.yr.com.uy` vhost and its SSL cert.
+
+- **URL:** https://thefuture100.yr.com.uy/
+- **Container:** `spritz-app` on `127.0.0.1:8035`
+- **Repo path on server:** `/root/spritz/`
+- **The `thefuture100-app` container is untouched**, still running on
+  `127.0.0.1:8030`. The original nginx vhost was backed up to
+  `/etc/nginx/sites-available/thefuture100.backup-YYYY-MM-DD`.
+
+To restore thefuture100 to that URL, replace
+`/etc/nginx/sites-available/thefuture100` with the backup and reload nginx.
+
+## Canonical target
+
+When DNS for `yr.com.uy` is available, switch to `spritz.yr.com.uy`.
+The recipe below documents that canonical setup.
+
 Target: **`spritz.yr.com.uy`** → VPS at `64.23.146.116` → container on `127.0.0.1:8035`.
 
 ## Architecture
