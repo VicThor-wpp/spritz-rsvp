@@ -49,6 +49,11 @@ La biblioteca vive en IndexedDB del navegador.
 - Parsing de EPUB por capítulos (OPF spine + NCX)
 - Extracción de PDF vía PyMuPDF
 - Biblioteca local en tu navegador (IndexedDB) — nada de lo que subís queda en el servidor
+- Todo lo compartido (archivos, URLs, texto) se guarda como libro con progreso y resume
+- Hero "Continuar leyendo": un tap y volvés a la palabra exacta donde quedaste
+- Export/import JSON de la biblioteca (backup y traspaso entre dispositivos)
+- `navigator.storage.persist()` para proteger la biblioteca de la limpieza automática
+- Covers generadas por libro y cuento demo de dominio público embebido
 - Progreso de lectura guardado en localStorage
 - Vista split con divisor arrastrable (RSVP arriba, texto abajo)
 - Panel inferior de texto plano tipo ereader

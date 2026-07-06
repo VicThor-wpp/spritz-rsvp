@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.7.0] - 2026-07-06
+
+### Added
+
+- **Everything shared lands in the library**: extracted URLs and shared/pasted text are now saved as local books (client-side id = slug + SHA-256 content hash, same scheme as the server, so re-sharing upserts instead of duplicating). They get progress tracking and resume like files always did.
+- **"Continuar leyendo" hero** at the top of the library: one tap jumps straight to the exact word where you left off in the most recently read (unfinished) book.
+- **Library safeguard and portability**: `navigator.storage.persist()` requested on load (asks the browser not to evict IndexedDB under storage pressure), storage-usage indicator, and JSON export/import of the full library (books + progress) for backup and cross-device transfer.
+- **Visual polish**: deterministic gradient covers per book (derived from the content-hash id), richer empty state, and an embedded public-domain demo story ("A la deriva", Horacio Quiroga) to try the reader in one tap.
+- Single-chapter books (articles, texts) skip the chapters list and open straight into the reader.
+- `.txt` accepted by the file picker (the backend already supported it).
+
+### Changed
+
+- Reader close/back/Escape now return to the library for single-chapter books (the chapters view only appears for multi-chapter books). SW cache bumped to `pivot-v8`.
+
 ## [0.6.0] - 2026-07-06
 
 ### Changed
