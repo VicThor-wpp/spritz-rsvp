@@ -49,6 +49,7 @@
           "accept": [
             "application/pdf",
             "application/epub+zip",
+            "application/octet-stream",
             "text/plain",
             ".pdf",
             ".epub",

@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.3.0] - 2026-07-06
+
+### Added
+
+- Original icon set (ORP reticle design: word bars with the fixation point in accent red, framed by the reader's alignment ticks). Replaces the previous red "S" that echoed Spritz Inc.'s branding and was not our IP.
+- `.txt` upload support in `/api/upload` — the share target manifest already advertised `text/plain`/`.txt` files but the backend rejected them.
+- `application/octet-stream` in the share target `accept` list: Android file managers, WhatsApp and others share PDF/EPUB files with that generic MIME type, and the app was invisible in the share sheet for those files (ADR-012).
+
+### Fixed
+
+- `HEAD /manifest.webmanifest` and `HEAD /manifest.json` returned 404 (the FastAPI routes only registered GET; HEAD fell through to the static mount where only `manifest.json` exists). Both routes now serve GET and HEAD.
+- Service Worker cache bumped to `spritz-v5` so clients pick up the new icons (the old ones were precached under the same URLs).
+
 ## [0.2.0] - 2026-06-12
 
 ### Added

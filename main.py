@@ -95,6 +95,15 @@ def _extract_pdf(data: bytes, filename: str) -> dict:
     }
 
 
+def _extract_txt(data: bytes, filename: str) -> dict:
+    text = data.decode("utf-8", errors="replace").strip()
+    title = Path(filename).stem
+    return {
+        "title": title,
+        "chapters": [{"title": title, "text": text, "words": len(text.split())}],
+    }
+
+
 _GUTENBERG_BOILERPLATE_TITLE_RE = re.compile(
     r"(project\s+gutenberg(?:\s*\u2122|\s*tm)?(?:\s+license)?"
     r"|gutenberg\s+trademark"
@@ -344,9 +353,9 @@ async def upload(file: UploadFile = File(...)) -> JSONResponse:
     filename = file.filename or "unknown"
     ext = Path(filename).suffix.lower()
 
-    if ext not in (".pdf", ".epub"):
+    if ext not in (".pdf", ".epub", ".txt"):
         return JSONResponse(
-            {"error": f"Formato no soportado: {ext}. Usá PDF o EPUB."},
+            {"error": f"Formato no soportado: {ext}. Usá PDF, EPUB o TXT."},
             status_code=400,
         )
 
@@ -357,8 +366,10 @@ async def upload(file: UploadFile = File(...)) -> JSONResponse:
     try:
         if ext == ".pdf":
             result = _extract_pdf(data, filename)
-        else:
+        elif ext == ".epub":
             result = _extract_epub(data, filename)
+        else:
+            result = _extract_txt(data, filename)
 
         if not result.get("chapters"):
             return JSONResponse(
@@ -412,12 +423,14 @@ def _manifest_response() -> FileResponse:
     )
 
 
-@app.get("/manifest.webmanifest", include_in_schema=False)
+# HEAD included: without it, HEAD falls through to the static mount (no such
+# file there) and returns 404, which trips PWA validators and looks broken.
+@app.api_route("/manifest.webmanifest", methods=["GET", "HEAD"], include_in_schema=False)
 async def manifest_webmanifest():
     return _manifest_response()
 
 
-@app.get("/manifest.json", include_in_schema=False)
+@app.api_route("/manifest.json", methods=["GET", "HEAD"], include_in_schema=False)
 async def manifest_json():
     return _manifest_response()
 

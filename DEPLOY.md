@@ -137,13 +137,39 @@ rsync -av root@64.23.146.116:/root/spritz/books/ ./books-backup-$(date +%F)/
 
 ## Install on Android (PWA)
 
-1. Open `https://spritz.yr.com.uy/` in Chrome on Android
-2. Tap menu (⋮) → **"Install app"** or **"Add to Home screen"**
+1. Open the app URL in **Chrome** on Android (Firefox/Brave install shortcuts, not WebAPKs — no share target)
+2. Tap menu (⋮) → **"Install app"** / "Add to Home screen" → **Install** (not "Create shortcut")
 3. The Spritz icon appears on your home screen as a standalone app
 4. Open any other app, tap **Share**, scroll → **Spritz RSVP** appears in the share targets
+
+### Troubleshooting: app installed but missing from the share sheet
+
+The share target only exists inside a **WebAPK** — a real APK that Google's
+servers mint from the manifest when Chrome installs the PWA. Two common
+failure modes:
+
+- **Installed as a shortcut** (non-Chrome browser, or "Create shortcut" chosen,
+  or minting silently failed): the share target is never registered.
+- **Stale WebAPK**: installed before `share_target` existed in the manifest.
+  Chrome only re-checks the manifest when the app is opened, throttled to
+  ~1–3 days, so updates lag.
+
+Fix (forces a fresh mint):
+
+1. Uninstall the app (long-press icon → Uninstall / App info → Uninstall)
+2. Chrome → ⋮ → Settings → Site settings → All sites → find the app's domain →
+   **Clear & reset** (removes the old SW + cached manifest)
+3. Reopen the URL in Chrome, wait for it to load fully, then ⋮ → **Install app**
+4. Verify: Android Settings → Apps → Spritz → the package name should start
+   with `org.chromium.webapk.` — that confirms a real WebAPK. If the app is
+   not listed there at all, it was installed as a shortcut.
+5. The share sheet entry appears right after a successful WebAPK install
+   (no reboot needed).
 
 ### Share Target supports:
 
 - **URLs**: from browsers, X/Twitter, Reddit — auto-extracts article text
 - **Plain text**: from any text selection or note — loads as readable text
-- **Files**: PDF and EPUB — uploads directly to your library
+- **Files**: PDF, EPUB and TXT — uploads directly to your library
+  (also listed for `application/octet-stream`, the generic MIME most file
+  managers use when sharing ebooks; unsupported formats get a clear error toast)

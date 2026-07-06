@@ -1,5 +1,19 @@
 # Bitácora de desarrollo
 
+## 2026-07-06
+
+### 14. El share target no aparecía en Android — diagnóstico WebAPK
+
+Instalé la PWA en Android pero no aparecía como destino en el menú compartir, ni para archivos ni para páginas web. Investigué: el share target solo se registra si Chrome instala la PWA como **WebAPK** (un APK real que acuña un servidor de Google leyendo el manifest por HTTPS). Si la instalación fue un shortcut, o si el WebAPK se acuñó antes de que el manifest tuviera `share_target`, el destino nunca aparece — y Chrome re-chequea el manifest con throttle de días. Verifiqué el servidor: manifest 200 con `application/manifest+json`, share_target correcto. La causa raíz está en el dispositivo: hay que desinstalar y reinstalar desde Chrome. Documenté el procedimiento en DEPLOY.md.
+
+### 15. Tres huecos reales del lado del servidor
+
+Aunque la causa principal era el WebAPK viejo, encontré y cerré tres huecos: (1) `HEAD /manifest.webmanifest` devolvía 404 porque la ruta solo registraba GET y el HEAD caía al mount estático — agregué HEAD a ambas rutas de manifest. (2) El `accept` del share target no incluía `application/octet-stream`, que es el MIME con el que los file managers y WhatsApp comparten EPUBs y PDFs — sin eso la app no aparece para esos archivos ni con el WebAPK bien instalado (ADR-012). (3) El manifest publicitaba `.txt` pero `/api/upload` lo rechazaba — agregué `_extract_txt` (decode UTF-8 con replace, un capítulo único).
+
+### 16. Ícono original — retícula ORP
+
+El ícono era una "S" roja sobre negro que evocaba el branding de Spritz Inc. y no era IP nuestra. Lo reemplacé por un diseño geométrico original generado con Pillow: tres barras horizontales como una palabra, con el segmento del ORP en rojo levemente a la izquierda del centro, enmarcado por los ticks de alineación de la retícula del lector. Sin letras — nada que colisione con marcas ajenas. Generé las cuatro variantes (192/512, any/maskable) con supersampling 4x, y bumpeé el cache del SW a `spritz-v5` porque los íconos viejos estaban precacheados bajo las mismas URLs. Pendiente decidir si el nombre "Spritz" (marca registrada de Spritz Technology) también se cambia.
+
 ## 2026-06-12
 
 ### 1. Investigación inicial — PWA como decisión

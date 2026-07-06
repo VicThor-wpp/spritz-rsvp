@@ -133,3 +133,15 @@ The previous performance problem was caused by mutating styles on every span eve
 Click handler on the panel uses `e.target.closest('.w')` to detect word taps; tapping a word calls `seekToWord(i)` which jumps the RSVP and auto-resumes playback. Tapping non-word areas falls through to the existing `togglePlay()` behavior.
 
 **Consequences:** Reading context is dramatically improved — users instantly see where they are in the text and what's coming next. Click-to-seek removes the need for scrubbing with the +/- 10 word buttons for large jumps. Initial render cost is one-time; per-tick cost was measured at 0.002ms (vs 170ms budget at 350 WPM), so playback is not affected. The bottom panel no longer doubles as a play/pause hit-zone for single-word taps, but empty-area taps still toggle play.
+
+---
+
+## ADR-012: `application/octet-stream` en el accept del Share Target
+
+**Status:** Accepted
+
+**Context:** Con el share target aceptando solo `application/pdf`, `application/epub+zip` y `text/plain`, la app no aparecía en el share sheet de Android al compartir archivos desde file managers, WhatsApp o Drive: esas apps suelen etiquetar EPUBs (y a veces PDFs) como `application/octet-stream`, el MIME genérico de binarios. Android filtra los destinos del share sheet por MIME declarado, no por extensión.
+
+**Decision:** Agregar `application/octet-stream` a la lista `accept` de `share_target.params.files` en el manifest. La validación real del formato queda del lado del servidor: `/api/upload` decide por extensión (`.pdf`/`.epub`/`.txt`) y rechaza el resto con un error claro que el Service Worker convierte en toast (`?share-error=`).
+
+**Consequences:** La app pasa a aparecer como destino para *cualquier* archivo binario (ZIPs, APKs, imágenes compartidas como octet-stream), no solo libros. Es ruido asumible: es el mismo trade-off que hacen los lectores de EPUB nativos, y el usuario que comparte un archivo no soportado recibe un mensaje inmediato en lugar de silencio. La alternativa (mantener la lista estricta) hacía invisible la app justo en el caso de uso principal — mandar un libro desde el file manager.
