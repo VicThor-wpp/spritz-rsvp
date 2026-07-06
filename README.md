@@ -55,6 +55,8 @@ La biblioteca vive en IndexedDB del navegador.
 - `navigator.storage.persist()` para proteger la biblioteca de la limpieza automática
 - Covers generadas por libro y cuento demo de dominio público embebido
 - Progreso de lectura guardado en localStorage
+- Estadísticas de lectura: racha diaria, palabras hoy/totales y WPM promedio real
+- Presets de WPM (250/350/450/600) y velocidad persistida entre sesiones
 - Vista split con divisor arrastrable (RSVP arriba, texto abajo)
 - Panel inferior de texto plano tipo ereader
 - PWA instalable (WebAPK en Android)

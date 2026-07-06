@@ -62,6 +62,13 @@
   .library-footer button { background:none; border:none; color:var(--dim2); font-size:12px; padding:4px 6px; text-decoration:underline; }
   .empty-actions { margin-top:16px; }
   .empty-actions button { background:var(--surface2); border:1px solid #2a2a2a; color:var(--text); font-size:13px; padding:10px 16px; }
+  .stats-strip { display:flex; gap:8px; margin-bottom:12px; }
+  .stats-strip .stat { flex:1; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:10px 4px; text-align:center; min-width:0; }
+  .stats-strip .stat-v { font-size:17px; font-weight:700; }
+  .stats-strip .stat-l { font-size:10px; color:var(--dim2); margin-top:2px; }
+  .wpm-presets { display:flex; gap:6px; justify-content:center; margin-top:6px; }
+  .wpm-presets .preset { background:var(--surface); border:1px solid var(--border); color:var(--dim2); font-size:12px; font-weight:600; padding:5px 0; flex:1; max-width:72px; border-radius:8px; }
+  .wpm-presets .preset.active { border-color:var(--accent); color:var(--text); }
   .book-card {
     background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
     padding:14px 16px; margin-bottom:10px; cursor:pointer; transition:border-color .15s;
@@ -305,6 +312,12 @@
       <input type="range" id="wpm-slider" min="100" max="900" value="350" step="10">
       <span class="wpm-val" id="wpm-display">350</span>
     </div>
+    <div class="wpm-presets" id="wpm-presets">
+      <button class="preset" data-wpm="250">250</button>
+      <button class="preset" data-wpm="350">350</button>
+      <button class="preset" data-wpm="450">450</button>
+      <button class="preset" data-wpm="600">600</button>
+    </div>
     <div class="ctrl-btns">
       <button class="secondary" id="btn-reset" title="Reiniciar">&#8634;</button>
       <button class="secondary" id="btn-back10" title="-10">&#171;</button>
@@ -427,6 +440,47 @@ function markChapterRead(bid,i) {
 }
 let _st=null;
 function debouncedSave() { clearTimeout(_st); _st=setTimeout(saveProgress,500); }
+
+// ==================== READING STATS ====================
+// Acumula en memoria y flushea a localStorage cada 100 palabras, al pausar
+// y al ocultarse la pestaña. Fechas en hora LOCAL (toISOString es UTC y en
+// UY-3 el día cambiaría a las 21:00, rompiendo las rachas).
+const _pend={words:0,ms:0};
+function todayKey(d=new Date()){
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function loadStats(){
+  try { return JSON.parse(localStorage.getItem('spritz-stats'))||{}; }
+  catch(err){ console.warn('[spritz] corrupt stats:', err); return {}; }
+}
+function flushStats(){
+  if(!_pend.words) return;
+  try {
+    const s=loadStats();
+    s.totalWords=(s.totalWords||0)+_pend.words;
+    s.totalMs=(s.totalMs||0)+_pend.ms;
+    s.days=s.days||{};
+    const day=todayKey();
+    s.days[day]=(s.days[day]||0)+_pend.words;
+    const keys=Object.keys(s.days).sort();
+    while(keys.length>90) delete s.days[keys.shift()];
+    localStorage.setItem('spritz-stats',JSON.stringify(s));
+  } catch(err){ console.error('[spritz] flushStats failed:', err); }
+  _pend.words=0; _pend.ms=0;
+}
+function calcStreak(days){
+  if(!days) return 0;
+  let n=0; const d=new Date();
+  if(!days[todayKey(d)]) d.setDate(d.getDate()-1); // la racha sigue viva hasta que termine hoy
+  while(days[todayKey(d)]){ n++; d.setDate(d.getDate()-1); }
+  return n;
+}
+function fmtCompact(n){
+  if(n>=1000000) return (n/1000000).toFixed(1).replace('.',',')+'M';
+  if(n>=10000) return Math.round(n/1000)+'k';
+  if(n>=1000) return (n/1000).toFixed(1).replace('.',',')+'k';
+  return String(n);
+}
 
 // ==================== LOCAL LIBRARY (IndexedDB, ADR-013) ====================
 // Books live only in this browser. The server converts files in memory and
@@ -576,6 +630,18 @@ async function loadLibrary() {
         <div class="hero-label">Continuar leyendo</div>
         <div class="hero-book">${esc(latest.b.title)}</div>
         <div class="hero-detail">${esc(ch?ch.title:'')} · ${pct}% del capítulo</div>
+      </div>`;
+    }
+    const stats=loadStats();
+    if(stats.totalWords){
+      const avg=stats.totalMs>0?Math.round(stats.totalWords/(stats.totalMs/60000)):0;
+      const today=(stats.days&&stats.days[todayKey()])||0;
+      const streak=calcStreak(stats.days);
+      html+=`<div class="stats-strip">
+        <div class="stat"><div class="stat-v">${streak}</div><div class="stat-l">${streak===1?'día de racha':'días de racha'}</div></div>
+        <div class="stat"><div class="stat-v">${fmtCompact(today)}</div><div class="stat-l">palabras hoy</div></div>
+        <div class="stat"><div class="stat-v">${fmtCompact(stats.totalWords)}</div><div class="stat-l">palabras totales</div></div>
+        <div class="stat"><div class="stat-v">${avg||'–'}</div><div class="stat-l">wpm promedio</div></div>
       </div>`;
     }
     for(const b of books){
@@ -793,7 +859,10 @@ function tick() {
   if(app.index%20===0) debouncedSave();
   if(app.index>=app.words.length) return;
   const base=60000/app.wpm;
-  app.timer=setTimeout(tick, wordDelay(app.words[app.index-1],base));
+  const delay=wordDelay(app.words[app.index-1],base);
+  _pend.words++; _pend.ms+=delay;
+  if(_pend.words>=100) flushStats();
+  app.timer=setTimeout(tick, delay);
 }
 
 function play() {
@@ -804,6 +873,7 @@ function stop() {
   app.playing=false; clearTimeout(app.timer);
   btnPlay.innerHTML='&#9654;';
   if(app.bookId) saveProgress();
+  flushStats();
 }
 function togglePlay() { app.playing?stop():play(); }
 function reset() { stop(); app.index=0; displayCurrentWord(); scrollToSpan(0); }
@@ -882,7 +952,14 @@ $('#btn-reset').addEventListener('click',reset);
 $('#btn-back10').addEventListener('click',()=>skip(-10));
 $('#btn-fwd10').addEventListener('click',()=>skip(10));
 $('#btn-close').addEventListener('click',closeReader);
-wpmSlider.addEventListener('input',()=>{app.wpm=parseInt(wpmSlider.value);wpmDisplay.textContent=app.wpm;});
+function setWpm(v){
+  v=Math.max(100,Math.min(900,parseInt(v)||350));
+  app.wpm=v; wpmSlider.value=v; wpmDisplay.textContent=v;
+  try { localStorage.setItem('spritz-wpm',String(v)); } catch(err){ /* quota — no crítico */ }
+  document.querySelectorAll('#wpm-presets .preset').forEach(b=>b.classList.toggle('active',parseInt(b.dataset.wpm)===v));
+}
+wpmSlider.addEventListener('input',()=>setWpm(wpmSlider.value));
+document.querySelectorAll('#wpm-presets .preset').forEach(b=>b.addEventListener('click',()=>setWpm(b.dataset.wpm)));
 $('#btn-prev-ch').addEventListener('click',()=>{if(!app.bookId||app.chapterIdx<=0)return;stop();loadChapter(app.bookId,app.chapterIdx-1);});
 $('#btn-next-ch').addEventListener('click',()=>{if(!app.bookId||app.chapterIdx>=app.totalChapters-1)return;stop();loadChapter(app.bookId,app.chapterIdx+1);});
 
@@ -910,7 +987,9 @@ splitReader.addEventListener('click', (e) => {
 });
 
 // Save on hide
-document.addEventListener('visibilitychange',()=>{if(document.hidden&&app.bookId)saveProgress();});
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){ if(app.bookId)saveProgress(); flushStats(); }
+});
 
 // Resize
 window.addEventListener('resize',()=>{if($('#view-reader').classList.contains('active'))applySplit();});
@@ -1014,6 +1093,7 @@ $('#import-input').addEventListener('change',e=>{
 if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
 
 // Init
+setWpm(localStorage.getItem('spritz-wpm')||350);
 loadLibrary();
 </script>
 </body>

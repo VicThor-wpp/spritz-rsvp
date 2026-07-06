@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.8.0] - 2026-07-06
+
+### Added
+
+- **Reading stats** (localStorage `spritz-stats`): words read and actual reading time accumulate in memory during playback and flush every 100 words, on pause and on tab hide. The library shows a 4-tile strip — day streak, words today, total words, and *real* average WPM (computed from actual delays, so punctuation pauses count). Daily history capped at 90 days; dates use local time (UTC keys would flip the day at 21:00 in UY).
+- **WPM presets** (250/350/450/600) under the slider, with the active one highlighted. WPM is now persisted (`spritz-wpm`) — it used to reset to 350 on every reload.
+
 ## [0.7.0] - 2026-07-06
 
 ### Added
