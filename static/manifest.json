@@ -1,8 +1,8 @@
 {
   "id": "/?source=pwa",
-  "name": "Spritz RSVP",
-  "short_name": "Spritz",
-  "description": "Lector rápido RSVP con ORP highlighting",
+  "name": "Pivot — Lector RSVP",
+  "short_name": "Pivot",
+  "description": "Lector rápido RSVP: el ojo fijo en la letra pívot, el texto fluye",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

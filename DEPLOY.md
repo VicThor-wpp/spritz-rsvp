@@ -1,8 +1,13 @@
-# Spritz RSVP — Production Deploy
+# Pivot — Production Deploy
+
+> Infra names (`spritz-app` container, `spritz-rsvp` image, `/root/spritz` repo
+> path, GitHub repo) keep the legacy "spritz" prefix until the DNS migration to
+> `pivot.yr.com.uy` — renaming them buys nothing and would break the running
+> deploy recipe.
 
 ## Current deployment (temporary)
 
-While the DNS for `spritz.yr.com.uy` is not yet set up, the app reuses the
+While the DNS for `pivot.yr.com.uy` is not yet set up, the app reuses the
 existing `thefuture100.yr.com.uy` vhost and its SSL cert.
 
 - **URL:** https://thefuture100.yr.com.uy/
@@ -17,10 +22,10 @@ To restore thefuture100 to that URL, replace
 
 ## Canonical target
 
-When DNS for `yr.com.uy` is available, switch to `spritz.yr.com.uy`.
+When DNS for `yr.com.uy` is available, switch to `pivot.yr.com.uy`.
 The recipe below documents that canonical setup.
 
-Target: **`spritz.yr.com.uy`** → VPS at `64.23.146.116` → container on `127.0.0.1:8035`.
+Target: **`pivot.yr.com.uy`** → VPS at `64.23.146.116` → container on `127.0.0.1:8035`.
 
 ## Architecture
 
@@ -45,12 +50,12 @@ Add A record at your DNS provider for `yr.com.uy`:
 
 | Type | Name | Value | TTL |
 |---|---|---|---|
-| A | spritz | 64.23.146.116 | 300 |
+| A | pivot | 64.23.146.116 | 300 |
 
 Verify propagation (may take 5-30 min):
 
 ```bash
-dig +short spritz.yr.com.uy
+dig +short pivot.yr.com.uy
 # should output: 64.23.146.116
 ```
 
@@ -72,16 +77,16 @@ ssh root@64.23.146.116 'git clone https://github.com/VicThor-wpp/spritz-rsvp.git
 Install nginx vhost (HTTP only — certbot will add SSL automatically):
 
 ```bash
-scp deploy/nginx-spritz.conf root@64.23.146.116:/etc/nginx/sites-available/spritz
+scp deploy/nginx-pivot.conf root@64.23.146.116:/etc/nginx/sites-available/pivot
 ssh root@64.23.146.116 '\
-  ln -sf /etc/nginx/sites-available/spritz /etc/nginx/sites-enabled/spritz && \
+  ln -sf /etc/nginx/sites-available/pivot /etc/nginx/sites-enabled/pivot && \
   nginx -t && systemctl reload nginx'
 ```
 
 Obtain SSL certificate:
 
 ```bash
-ssh root@64.23.146.116 'certbot --nginx -d spritz.yr.com.uy --non-interactive --agree-tos --email admin@yr.com.uy --redirect'
+ssh root@64.23.146.116 'certbot --nginx -d pivot.yr.com.uy --non-interactive --agree-tos --email admin@yr.com.uy --redirect'
 ```
 
 ### 3. Build and run
@@ -96,7 +101,7 @@ ssh root@64.23.146.116 'cd /root/spritz && \
 
 ```bash
 ssh root@64.23.146.116 'curl -fsS http://127.0.0.1:8035/api/books'
-curl -fsS https://spritz.yr.com.uy/api/books
+curl -fsS https://pivot.yr.com.uy/api/books
 # both should return: []
 ```
 
@@ -139,8 +144,8 @@ rsync -av root@64.23.146.116:/root/spritz/books/ ./books-backup-$(date +%F)/
 
 1. Open the app URL in **Chrome** on Android (Firefox/Brave install shortcuts, not WebAPKs — no share target)
 2. Tap menu (⋮) → **"Install app"** / "Add to Home screen" → **Install** (not "Create shortcut")
-3. The Spritz icon appears on your home screen as a standalone app
-4. Open any other app, tap **Share**, scroll → **Spritz RSVP** appears in the share targets
+3. The Pivot icon appears on your home screen as a standalone app
+4. Open any other app, tap **Share**, scroll → **Pivot** appears in the share targets
 
 ### Troubleshooting: app installed but missing from the share sheet
 
@@ -160,7 +165,7 @@ Fix (forces a fresh mint):
 2. Chrome → ⋮ → Settings → Site settings → All sites → find the app's domain →
    **Clear & reset** (removes the old SW + cached manifest)
 3. Reopen the URL in Chrome, wait for it to load fully, then ⋮ → **Install app**
-4. Verify: Android Settings → Apps → Spritz → the package name should start
+4. Verify: Android Settings → Apps → Pivot → the package name should start
    with `org.chromium.webapk.` — that confirms a real WebAPK. If the app is
    not listed there at all, it was installed as a shortcut.
 5. The share sheet entry appears right after a successful WebAPK install

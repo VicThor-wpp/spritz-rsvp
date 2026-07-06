@@ -1,4 +1,4 @@
-"""Spritz RSVP speed reader — FastAPI backend + static PWA."""
+"""Pivot — lector RSVP. FastAPI backend + static PWA."""
 
 from __future__ import annotations
 
@@ -19,11 +19,11 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 # --- Logging -------------------------------------------------------------
-# Always surface spritz logs to stderr regardless of uvicorn config.
-logger = logging.getLogger("spritz")
+# Always surface app logs to stderr regardless of uvicorn config.
+logger = logging.getLogger("pivot")
 if not logger.handlers:
     _h = logging.StreamHandler()
-    _h.setFormatter(logging.Formatter("%(asctime)s | %(levelname)-7s | spritz | %(message)s"))
+    _h.setFormatter(logging.Formatter("%(asctime)s | %(levelname)-7s | pivot | %(message)s"))
     logger.addHandler(_h)
     logger.setLevel(logging.INFO)
     logger.propagate = False
@@ -32,7 +32,7 @@ STATIC = Path(__file__).parent / "static"
 BOOKS_DIR = Path(__file__).parent / "books"
 BOOKS_DIR.mkdir(exist_ok=True)
 
-app = FastAPI(title="spritz-rsvp")
+app = FastAPI(title="pivot-rsvp")
 
 FETCH_HEADERS = {
     "User-Agent": (

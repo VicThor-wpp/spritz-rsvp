@@ -1,4 +1,4 @@
-const CACHE = "spritz-v5";
+const CACHE = "pivot-v6";
 const ASSETS = [
   "/",
   "/manifest.webmanifest",

@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.0] - 2026-07-06
+
+### Changed
+
+- **App renamed: Spritz RSVP → Pivot.** "Spritz" is a registered trademark of Spritz Technology Inc. for exactly this technology. "Pivot" names the mechanic: the red ORP letter is the pivot the eye locks onto. Manifest `name`/`short_name`, header (`P I VOT` with the I in accent red — the ORP of a 5-letter word), page title, FastAPI title, logger tag and docs all renamed. The manifest `id` is unchanged, so existing installs keep working and pick up the new label on their next WebAPK update (or reinstall).
+- Canonical deploy target changed from `spritz.yr.com.uy` to `pivot.yr.com.uy` (DNS still pending; temporary vhost unchanged). `deploy/nginx-spritz.conf` renamed to `deploy/nginx-pivot.conf`.
+- Service Worker cache bumped to `pivot-v6`.
+- **Not renamed on purpose:** localStorage keys (`spritz-progress-*`, `spritz-read-*` — renaming would wipe reading progress), container/image names, VPS paths and the GitHub repo (documented in DEPLOY.md; deferred to the DNS migration).
+
 ## [0.3.0] - 2026-07-06
 
 ### Added

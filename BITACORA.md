@@ -14,6 +14,10 @@ Aunque la causa principal era el WebAPK viejo, encontré y cerré tres huecos: (
 
 El ícono era una "S" roja sobre negro que evocaba el branding de Spritz Inc. y no era IP nuestra. Lo reemplacé por un diseño geométrico original generado con Pillow: tres barras horizontales como una palabra, con el segmento del ORP en rojo levemente a la izquierda del centro, enmarcado por los ticks de alineación de la retícula del lector. Sin letras — nada que colisione con marcas ajenas. Generé las cuatro variantes (192/512, any/maskable) con supersampling 4x, y bumpeé el cache del SW a `spritz-v5` porque los íconos viejos estaban precacheados bajo las mismas URLs. Pendiente decidir si el nombre "Spritz" (marca registrada de Spritz Technology) también se cambia.
 
+### 17. Rename: Spritz → Pivot
+
+Decidimos el nombre nuevo: **Pivot**. Evalué opciones en tres familias (mecánica RSVP/ORP: Pívot, Mira, Orbe, Eje; cadencia: Tempo, Pulso; personalidad: Ipso, Erre) y verifiqué colisiones — "Fóvea", que era mi favorita conceptual, está triplemente tomada en la categoría (Fovea RSVP E-Reader, Foveal, fovea.rsvp). "Pivot" gana porque nombra la mecánica exacta: en la literatura RSVP la letra roja del ORP se llama *pivot letter*. El header quedó `P I VOT` con la I en rojo — que es justo el ORP que nuestro propio algoritmo calcularía para una palabra de 5 letras. Renombré manifest (el `id` no cambia, las instalaciones sobreviven), título, FastAPI, logger y docs; el target canónico pasa a `pivot.yr.com.uy`. Dejé sin tocar a propósito: las claves de localStorage (renombrarlas borraría el progreso de lectura de todos), los nombres de container/imagen, los paths del VPS y el repo de GitHub — todo eso va junto con la migración de DNS.
+
 ## 2026-06-12
 
 ### 1. Investigación inicial — PWA como decisión

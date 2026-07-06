@@ -1,6 +1,9 @@
-# Spritz RSVP — Lector de velocidad
+# Pivot — Lector RSVP
 
-RSVP speed reader tipo Spritz con panel split: RSVP arriba, texto abajo.
+Lector de velocidad RSVP con resaltado de la letra pívot (ORP) y panel split: RSVP arriba, texto abajo.
+
+> El repo se llama `spritz-rsvp` por razones históricas; la app se llama **Pivot**
+> desde v0.4.0 (el nombre "Spritz" es marca de Spritz Technology Inc.).
 
 ## Stack
 
@@ -34,7 +37,7 @@ spritz-rsvp/
 | Método | Ruta | Descripción |
 |--------|------|-------------|
 | `POST` | `/api/extract` | Extraer texto desde URL |
-| `POST` | `/api/upload` | Subir PDF/EPUB y crear libro |
+| `POST` | `/api/upload` | Subir PDF/EPUB/TXT y crear libro |
 | `GET` | `/api/books` | Listar biblioteca |
 | `GET` | `/api/books/{id}` | Obtener libro |
 | `GET` | `/api/books/{id}/chapters/{idx}` | Obtener capítulo |
@@ -50,8 +53,8 @@ spritz-rsvp/
 - Progreso de lectura guardado en localStorage
 - Vista split con divisor arrastrable (RSVP arriba, texto abajo)
 - Panel inferior de texto plano tipo ereader
-- PWA instalable
-- Web Share Target para recibir URLs externas
+- PWA instalable (WebAPK en Android)
+- Web Share Target para recibir URLs, texto y archivos PDF/EPUB/TXT
 
 ## Licencia
 
