@@ -57,6 +57,7 @@ La biblioteca vive en IndexedDB del navegador.
 - Progreso de lectura guardado en localStorage
 - Estadísticas de lectura: racha diaria, palabras hoy/totales y WPM promedio real
 - Presets de WPM (250/350/450/600) y velocidad persistida entre sesiones
+- Tamaño de fuente del panel ajustable (A−/A+, 12–24px, persistido)
 - Vista split con divisor arrastrable (RSVP arriba, texto abajo)
 - Panel inferior de texto plano tipo ereader
 - PWA instalable (WebAPK en Android)

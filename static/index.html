@@ -207,8 +207,12 @@
 
   .reader-top {
     display:flex; justify-content:space-between; align-items:center;
-    padding:4px 16px; font-size:11px; color:var(--dim); flex-shrink:0;
+    padding:4px 16px; font-size:11px; color:var(--dim); flex-shrink:0; gap:8px;
   }
+  .reader-top #reader-info { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .fs-controls { display:flex; gap:4px; flex-shrink:0; }
+  .fs-btn { background:none; border:1px solid var(--border); color:var(--dim2); font-size:11px; font-weight:600; padding:2px 8px; border-radius:6px; line-height:1.4; }
+  .fs-btn:active { border-color:var(--accent); color:var(--text); }
 
   .finished-msg { font-size:16px; color:var(--dim); text-align:center; }
   .finished-msg span { color:var(--accent); font-weight:700; }
@@ -294,6 +298,10 @@
 <div id="view-reader" class="view">
   <div class="reader-top">
     <span id="reader-info"></span>
+    <span class="fs-controls">
+      <button class="fs-btn" id="btn-fs-dec" title="Letra más chica">A&minus;</button>
+      <button class="fs-btn" id="btn-fs-inc" title="Letra más grande">A+</button>
+    </span>
     <span id="reader-progress"></span>
   </div>
   <div class="split-container" id="split-container">
@@ -960,6 +968,20 @@ function setWpm(v){
 }
 wpmSlider.addEventListener('input',()=>setWpm(wpmSlider.value));
 document.querySelectorAll('#wpm-presets .preset').forEach(b=>b.addEventListener('click',()=>setWpm(b.dataset.wpm)));
+
+function setReaderFs(v){
+  v=Math.max(12,Math.min(24,parseInt(v)||17));
+  splitReader.style.fontSize=v+'px';
+  try { localStorage.setItem('spritz-reader-fs',String(v)); } catch(err){ /* quota — no crítico */ }
+  return v;
+}
+function bumpReaderFs(d){
+  const v=setReaderFs((parseInt(splitReader.style.fontSize)||17)+d);
+  if(_currentSpanIdx>=0) scrollToSpan(_currentSpanIdx); // el reflow no te pierde la palabra
+  showToast('Letra: '+v+'px','info',900);
+}
+$('#btn-fs-dec').addEventListener('click',()=>bumpReaderFs(-1));
+$('#btn-fs-inc').addEventListener('click',()=>bumpReaderFs(1));
 $('#btn-prev-ch').addEventListener('click',()=>{if(!app.bookId||app.chapterIdx<=0)return;stop();loadChapter(app.bookId,app.chapterIdx-1);});
 $('#btn-next-ch').addEventListener('click',()=>{if(!app.bookId||app.chapterIdx>=app.totalChapters-1)return;stop();loadChapter(app.bookId,app.chapterIdx+1);});
 
@@ -1094,6 +1116,7 @@ if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
 
 // Init
 setWpm(localStorage.getItem('spritz-wpm')||350);
+setReaderFs(localStorage.getItem('spritz-reader-fs')||17);
 loadLibrary();
 </script>
 </body>

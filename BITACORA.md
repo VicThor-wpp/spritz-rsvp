@@ -34,6 +34,10 @@ Con la biblioteca ya viviendo en IndexedDB, cerré la asimetría que quedaba: lo
 
 Agregué stats persistentes en localStorage: `tick()` acumula palabra + delay real en memoria y flushea cada 100 palabras, al pausar y al ocultarse la pestaña (mismo patrón que el progreso). La biblioteca muestra una tira de 4 tiles: racha de días, palabras hoy, palabras totales y WPM promedio — que sale de los delays reales, así que da menos que el nominal (581 vs 600 en el test) porque las pausas de puntuación cuentan: es la velocidad honesta. Detalle que casi muerde: las claves de día usan hora local y no `toISOString()` (UTC), porque en UY (UTC-3) el día UTC cambia a las 21:00 y partía las rachas. Historial diario capado a 90 días. Los presets de WPM (250/350/450/600) van bajo el slider con el activo resaltado, y de paso arreglé que el WPM no se persistía — cada reload volvía a 350; ahora vive en `spritz-wpm`. Verificado E2E: preset actualiza app/slider/storage, stats flushean al pausar, la tira renderiza, y el WPM sobrevive al reload.
 
+### 22. Tamaño de fuente del panel ereader
+
+Botones A−/A+ en la barra superior del lector: 12–24px con default en los 17px que ya tenía el CSS, persistido en `spritz-reader-fs`. Tras cada cambio se re-scrollea al span de la palabra actual porque el reflow cambia todas las alturas y te perdía la posición. Bonus del testing: el guard de "saltear libros terminados" del hero demostró funcionar solo — el demo quedó terminado de una corrida anterior y el hero desapareció como corresponde. Verificado E2E: incrementos aplican al computed style, clamp en 24 y 12, sobrevive al reload.
+
 ## 2026-06-12
 
 ### 1. Investigación inicial — PWA como decisión
