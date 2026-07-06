@@ -1,0 +1,67 @@
+{
+  "packageId": "uy.com.yr.pivot",
+  "host": "thefuture100.yr.com.uy",
+  "name": "Pivot — Lector RSVP",
+  "launcherName": "Pivot",
+  "display": "standalone",
+  "themeColor": "#0A0A0A",
+  "themeColorDark": "#0A0A0A",
+  "navigationColor": "#0A0A0A",
+  "navigationColorDark": "#0A0A0A",
+  "navigationDividerColor": "#0A0A0A",
+  "navigationDividerColorDark": "#0A0A0A",
+  "backgroundColor": "#0A0A0A",
+  "enableNotifications": false,
+  "startUrl": "/",
+  "iconUrl": "https://thefuture100.yr.com.uy/icons/icon-512.png",
+  "maskableIconUrl": "https://thefuture100.yr.com.uy/icons/icon-512-maskable.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./android.keystore",
+    "alias": "pivot"
+  },
+  "appVersionName": "0.4.0",
+  "appVersionCode": 1,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://thefuture100.yr.com.uy/manifest.webmanifest",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://thefuture100.yr.com.uy/",
+  "minSdkVersion": 21,
+  "orientation": "portrait",
+  "fingerprints": [],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": [],
+  "shareTarget": {
+    "action": "/share-target",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url",
+      "files": [
+        {
+          "name": "file",
+          "accept": [
+            "application/pdf",
+            "application/epub+zip",
+            "application/octet-stream",
+            "text/plain",
+            ".pdf",
+            ".epub",
+            ".txt"
+          ]
+        }
+      ]
+    }
+  },
+  "protocolHandlers": []
+}

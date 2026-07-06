@@ -171,6 +171,46 @@ Fix (forces a fresh mint):
 5. The share sheet entry appears right after a successful WebAPK install
    (no reboot needed).
 
+## Native APK (TWA via Bubblewrap)
+
+A sideloadable APK lives at `https://<domain>/pivot.apk`. It is a **Trusted Web
+Activity**: a ~2 MB shell that opens the deployed web app fullscreen in Chrome.
+Web deploys reach installed APKs instantly — rebuild only when the app identity
+changes (name, icons, share_target, **domain**).
+
+Why bother when the WebAPK exists: the TWA registers its share target as native
+intent-filters **at install time** — deterministic, no Google minting involved.
+
+### Project layout
+
+- `twa/twa-manifest.json` — the only versioned file; Android project regenerates from it
+- `twa/android.keystore` + `twa/keystore.properties` — signing identity, **gitignored,
+  BACK THEM UP** (losing them = installed APKs can't be updated, only uninstall/reinstall)
+- `static/.well-known/assetlinks.json` — Digital Asset Links: ties the signing key's
+  SHA-256 to the domain so the APK runs without Chrome's URL bar
+- Toolchain (local machine): Android SDK at `~/Android/Sdk` (with `bin`/`lib`
+  symlinks into `cmdline-tools/latest/` — Bubblewrap expects the old layout),
+  Temurin JDK 17 at `~/Android/jdk/`, paths wired in `~/.bubblewrap/config.json`
+
+### Rebuild
+
+```bash
+cd twa/
+export BUBBLEWRAP_KEYSTORE_PASSWORD=$(grep keystorePassword keystore.properties | cut -d= -f2)
+export BUBBLEWRAP_KEY_PASSWORD=$(grep keyPassword keystore.properties | cut -d= -f2)
+bubblewrap update --skipVersionUpgrade   # regenerate project after twa-manifest.json edits
+bubblewrap build --skipPwaValidation     # → app-release-signed.apk
+cp app-release-signed.apk ../static/pivot.apk
+# bump appVersionCode in twa-manifest.json on every release
+```
+
+### Domain migration checklist (thefuture100 → pivot.yr.com.uy)
+
+1. Update `host`, `webManifestUrl`, `fullScopeUrl`, `iconUrl`, `maskableIconUrl`
+   in `twa/twa-manifest.json`; bump `appVersionCode`
+2. Rebuild (same keystore — the fingerprint and `assetlinks.json` stay valid)
+3. Users must install the new APK (the old one points at the old domain)
+
 ### Share Target supports:
 
 - **URLs**: from browsers, X/Twitter, Reddit — auto-extracts article text

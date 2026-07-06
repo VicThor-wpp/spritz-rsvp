@@ -1,0 +1,6 @@
+# Only the TWA manifest is versioned. The Android project is regenerated with
+# `bubblewrap update`; the keystore and its passwords are secrets — BACK THEM
+# UP outside the repo (losing the keystore = can't update installed APKs).
+*
+!.gitignore
+!twa-manifest.json

@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.5.0] - 2026-07-06
+
+### Added
+
+- Native Android APK (Trusted Web Activity via Bubblewrap), downloadable at `/pivot.apk`. Package `uy.com.yr.pivot`, signed locally; the share target is registered as native intent-filters at install time — no dependency on Google's WebAPK minting. Project in `twa/` (only `twa-manifest.json` is versioned; keystore is gitignored).
+- `/.well-known/assetlinks.json` (Digital Asset Links) binding the signing key's SHA-256 to the domain so the TWA runs fullscreen without Chrome's URL bar.
+- DEPLOY.md: TWA rebuild recipe and domain-migration checklist (the APK is bound to the temporary domain until `pivot.yr.com.uy` exists).
+
 ## [0.4.0] - 2026-07-06
 
 ### Changed
