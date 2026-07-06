@@ -16,8 +16,6 @@ ADR.md
 BITACORA.md
 CHANGELOG.md
 DEPLOY.md
-books/*
-!books/.gitkeep
 .idea
 .vscode
 *.sublime-*

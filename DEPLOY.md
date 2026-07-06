@@ -37,9 +37,9 @@ Internet
   │
   ▼
 [ docker container spritz-app ] ── uvicorn :8000 inside, bound to :8035 on host
-  │
-  ▼
-[ ./books/ volume ] ── persistent JSON storage
+
+No user data is stored server-side (ADR-013): uploads are converted in
+memory and the resulting book lives in the browser's IndexedDB.
 ```
 
 ## One-time setup
@@ -128,17 +128,10 @@ ssh root@64.23.146.116 'cd /root/spritz && docker compose -f docker-compose.prod
 
 ## Persistent data
 
-Books live at `/root/spritz/books/` on the host, mounted to `/app/books/` in the container.
-
-- Survives `docker compose down/up`
-- Survives `docker compose build` (no rebuild of volume)
-- Survives `git pull` (books/ is gitignored)
-
-Backup:
-
-```bash
-rsync -av root@64.23.146.116:/root/spritz/books/ ./books-backup-$(date +%F)/
-```
+**None on the server** (since v0.6.0, ADR-013). Uploads are converted in memory
+and returned to the client; books live in the browser's IndexedDB and reading
+progress in localStorage. There is nothing to back up server-side — and nothing
+a visitor can see of what another user uploaded.
 
 ## Install on Android (PWA)
 

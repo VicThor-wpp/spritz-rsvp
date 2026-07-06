@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.6.0] - 2026-07-06
+
+### Changed
+
+- **Privacy by architecture (ADR-013): the server no longer stores user content.** `/api/upload` converts the file in memory and returns the complete book (chapter texts included); the browser stores it in IndexedDB (`pivot`/`books`). The public deployment was exposing every user's uploads to every visitor — now there is nothing server-side to expose.
+- Library, chapter reading and the `?book=` share flow now operate on IndexedDB. The Service Worker writes shared files into IndexedDB itself (same-origin database) before redirecting.
+- Removed: `/api/books*` endpoints, `books/` directory, its Docker volume, and the container healthcheck that depended on `/api/books` (now checks `/manifest.webmanifest`). SW cache bumped to `pivot-v7`.
+
+### Added
+
+- Per-book delete button in the library (removes the book from IndexedDB plus its localStorage progress keys).
+
+### Notes
+
+- The library is now per-device/per-browser: books are not shared between phone and desktop, and clearing site data clears the library. Reading progress model (localStorage) is unchanged.
+
 ## [0.5.0] - 2026-07-06
 
 ### Added

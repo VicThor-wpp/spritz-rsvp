@@ -29,8 +29,6 @@ if not logger.handlers:
     logger.propagate = False
 
 STATIC = Path(__file__).parent / "static"
-BOOKS_DIR = Path(__file__).parent / "books"
-BOOKS_DIR.mkdir(exist_ok=True)
 
 app = FastAPI(title="pivot-rsvp")
 
@@ -52,10 +50,6 @@ def _book_id(data: bytes, filename: str) -> str:
     h = hashlib.sha256(data).hexdigest()[:12]
     stem = re.sub(r"[^a-z0-9]+", "-", Path(filename).stem.lower()).strip("-")
     return f"{stem}-{h}"
-
-
-def _book_path(book_id: str) -> Path:
-    return BOOKS_DIR / f"{book_id}.json"
 
 
 def _fetch_html(url: str) -> str | None:
@@ -234,79 +228,6 @@ def _extract_epub(data: bytes, filename: str) -> dict:
     return {"title": book_title, "author": author, "chapters": chapters}
 
 
-# --- API: Books library --------------------------------------------------
-
-
-@app.get("/api/books")
-async def list_books():
-    books = []
-    for p in sorted(BOOKS_DIR.glob("*.json")):
-        try:
-            data = json.loads(p.read_text(encoding="utf-8"))
-            books.append(
-                {
-                    "id": data["id"],
-                    "title": data["title"],
-                    "author": data.get("author", ""),
-                    "chapters": len(data.get("chapters", [])),
-                    "words": sum(c["words"] for c in data.get("chapters", [])),
-                    "added": data.get("added", ""),
-                }
-            )
-        except Exception:
-            logger.exception("Failed to load book file: %s", p)
-    return JSONResponse(books)
-
-
-@app.get("/api/books/{book_id}")
-async def get_book(book_id: str):
-    p = _book_path(book_id)
-    if not p.exists():
-        return JSONResponse({"error": "book not found"}, status_code=404)
-    data = json.loads(p.read_text(encoding="utf-8"))
-    return JSONResponse(
-        {
-            "id": data["id"],
-            "title": data["title"],
-            "author": data.get("author", ""),
-            "chapters": [
-                {"title": c["title"], "words": c["words"]} for c in data.get("chapters", [])
-            ],
-        }
-    )
-
-
-@app.get("/api/books/{book_id}/chapters/{chapter_idx}")
-async def get_chapter(book_id: str, chapter_idx: int):
-    p = _book_path(book_id)
-    if not p.exists():
-        return JSONResponse({"error": "book not found"}, status_code=404)
-    data = json.loads(p.read_text(encoding="utf-8"))
-    chapters = data.get("chapters", [])
-    if chapter_idx < 0 or chapter_idx >= len(chapters):
-        return JSONResponse({"error": "chapter not found"}, status_code=404)
-    ch = chapters[chapter_idx]
-    return JSONResponse(
-        {
-            "book_id": book_id,
-            "book_title": data["title"],
-            "chapter_idx": chapter_idx,
-            "chapter_title": ch["title"],
-            "text": ch["text"],
-            "words": ch["words"],
-            "total_chapters": len(chapters),
-        }
-    )
-
-
-@app.delete("/api/books/{book_id}")
-async def delete_book(book_id: str):
-    p = _book_path(book_id)
-    if p.exists():
-        p.unlink()
-    return JSONResponse({"ok": True})
-
-
 # --- URL extract ---------------------------------------------------------
 
 
@@ -346,6 +267,9 @@ async def extract(request: Request) -> JSONResponse:
 
 
 # --- File upload ---------------------------------------------------------
+# Stateless by design (ADR-013): the file is parsed in memory and the full
+# book (chapter texts included) is returned to the client, which stores it
+# in its own IndexedDB. Nothing a user uploads is ever persisted server-side.
 
 
 @app.post("/api/upload")
@@ -376,23 +300,13 @@ async def upload(file: UploadFile = File(...)) -> JSONResponse:
                 {"error": "No se pudo extraer texto del archivo"}, status_code=422
             )
 
-        # Save to library
-        bid = _book_id(data, filename)
-        result["id"] = bid
+        result["id"] = _book_id(data, filename)
+        result["author"] = result.get("author", "")
         result["added"] = datetime.now().isoformat()
-        _book_path(bid).write_text(json.dumps(result, ensure_ascii=False), encoding="utf-8")
-        logger.info("Uploaded book: %s (%d chapters)", result["title"], len(result["chapters"]))
-
-        return JSONResponse(
-            {
-                "id": bid,
-                "title": result["title"],
-                "author": result.get("author", ""),
-                "chapters": [
-                    {"title": c["title"], "words": c["words"]} for c in result["chapters"]
-                ],
-            }
+        logger.info(
+            "Converted book: %s (%d chapters)", result["title"], len(result["chapters"])
         )
+        return JSONResponse(result)
     except Exception as exc:
         logger.exception("Upload failed: %s", filename)
         return JSONResponse({"error": str(exc)}, status_code=500)

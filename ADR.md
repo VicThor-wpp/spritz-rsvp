@@ -98,7 +98,7 @@
 
 ## ADR-009: JSON files for book storage
 
-**Status:** Accepted
+**Status:** Superseded by ADR-013
 
 **Context:** Uploaded books and extracted text need persistent storage. This is a single-user local application.
 
@@ -145,3 +145,15 @@ Click handler on the panel uses `e.target.closest('.w')` to detect word taps; ta
 **Decision:** Agregar `application/octet-stream` a la lista `accept` de `share_target.params.files` en el manifest. La validación real del formato queda del lado del servidor: `/api/upload` decide por extensión (`.pdf`/`.epub`/`.txt`) y rechaza el resto con un error claro que el Service Worker convierte en toast (`?share-error=`).
 
 **Consequences:** La app pasa a aparecer como destino para *cualquier* archivo binario (ZIPs, APKs, imágenes compartidas como octet-stream), no solo libros. Es ruido asumible: es el mismo trade-off que hacen los lectores de EPUB nativos, y el usuario que comparte un archivo no soportado recibe un mensaje inmediato en lugar de silencio. La alternativa (mantener la lista estricta) hacía invisible la app justo en el caso de uso principal — mandar un libro desde el file manager.
+
+---
+
+## ADR-013: Biblioteca client-side (IndexedDB) — el servidor no persiste contenido de usuarios
+
+**Status:** Accepted (supersedes ADR-009)
+
+**Context:** ADR-009 guardaba cada libro como JSON en `books/` del servidor, pensado cuando esto era una herramienta local single-user. Al deployarse en una URL pública, esa decisión se volvió un problema de privacidad: cualquier visitante veía la biblioteca completa de todos (un documento de trabajo subido por el autor quedó públicamente accesible). Lo que un usuario sube le pertenece a él, no a la web.
+
+**Decision:** El servidor pasa a ser un convertidor efímero: `/api/upload` parsea el archivo en memoria (PyMuPDF/EPUB/TXT necesitan Python) y devuelve el libro completo — texto de capítulos incluido — sin escribir nada a disco. El cliente guarda el libro en IndexedDB (store `books`, database `pivot`) y toda la biblioteca (listado, capítulos, lectura, borrado) opera contra IndexedDB. El Service Worker, que comparte la base por same-origin, guarda él mismo los libros que llegan por Web Share Target antes de redirigir. Se eliminaron los endpoints `/api/books*`, el directorio `books/`, su volumen de Docker y el healthcheck que dependía de ellos.
+
+**Consequences:** Privacidad por arquitectura — no hay nada que borrar del servidor porque nunca se guarda. Sin límite práctico de tamaño (IndexedDB maneja cientos de MB). El costo: la biblioteca es por-dispositivo/por-navegador (el teléfono y la desktop no comparten libros — re-subir el archivo en cada dispositivo), y limpiar los datos del sitio en el navegador borra la biblioteca. El progreso de lectura ya vivía en localStorage, así que su modelo no cambia.

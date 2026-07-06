@@ -47,6 +47,9 @@
   /* --- LIBRARY --- */
   .library { flex:1 1 0; min-height:0; padding:16px; overflow-y:auto; -webkit-overflow-scrolling:touch; }
   .library-empty { text-align:center; color:var(--dim); padding:40px 20px; font-size:14px; }
+  .book-card { position:relative; }
+  .bc-del { position:absolute; top:6px; right:6px; background:none; border:none; color:var(--dim); font-size:18px; line-height:1; padding:6px 10px; border-radius:6px; }
+  .bc-del:active { background:var(--surface2); color:var(--accent); }
   .book-card {
     background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
     padding:14px 16px; margin-bottom:10px; cursor:pointer; transition:border-color .15s;
@@ -408,6 +411,32 @@ function markChapterRead(bid,i) {
 let _st=null;
 function debouncedSave() { clearTimeout(_st); _st=setTimeout(saveProgress,500); }
 
+// ==================== LOCAL LIBRARY (IndexedDB, ADR-013) ====================
+// Books live only in this browser. The server converts files in memory and
+// returns the full book; nothing a user uploads is stored server-side.
+const DB_NAME='pivot', DB_STORE='books';
+function openDb(){
+  return new Promise((res,rej)=>{
+    const req=indexedDB.open(DB_NAME,1);
+    req.onupgradeneeded=()=>req.result.createObjectStore(DB_STORE,{keyPath:'id'});
+    req.onsuccess=()=>res(req.result);
+    req.onerror=()=>rej(req.error);
+  });
+}
+async function idbTx(mode,fn){
+  const db=await openDb();
+  return new Promise((res,rej)=>{
+    const tx=db.transaction(DB_STORE,mode);
+    const req=fn(tx.objectStore(DB_STORE));
+    tx.oncomplete=()=>res(req?req.result:undefined);
+    tx.onerror=()=>rej(tx.error);
+  });
+}
+const idbPutBook=b=>idbTx('readwrite',s=>s.put(b));
+const idbGetBook=id=>idbTx('readonly',s=>s.get(id));
+const idbAllBooks=()=>idbTx('readonly',s=>s.getAll());
+const idbDeleteBook=id=>idbTx('readwrite',s=>s.delete(id));
+
 // ==================== DOM ====================
 const $=s=>document.querySelector(s);
 const wordDisplay=$('#word-display'), wpmSlider=$('#wpm-slider'), wpmDisplay=$('#wpm-display');
@@ -468,25 +497,38 @@ function applySplit() {
 async function loadLibrary() {
   const list=$('#library-list');
   try {
-    const books=await fetchJSON('/api/books');
-    if(!Array.isArray(books) || !books.length){
-      list.innerHTML='<div class="library-empty">No hay libros.<br>Cargá un EPUB o PDF.</div>';
+    const books=(await idbAllBooks()).sort((a,b)=>(b.added||'').localeCompare(a.added||''));
+    if(!books.length){
+      list.innerHTML='<div class="library-empty">No hay libros en este dispositivo.<br>Cargá un EPUB, PDF o TXT.</div>';
       return;
     }
     let html='';
     for(const b of books){
+      const nCh=b.chapters.length, words=b.chapters.reduce((s,c)=>s+c.words,0);
       const prog=getProgress(b.id), read=getReadChapters(b.id);
-      const pct=b.chapters>0?(read.length/b.chapters*100).toFixed(0):0;
+      const pct=nCh>0?(read.length/nCh*100).toFixed(0):0;
       const resume=prog?`<div class="bc-resume">Continuar: cap. ${prog.chapterIdx+1}, palabra ${prog.wordIndex}</div>`:'';
       html+=`<div class="book-card" data-id="${esc(b.id)}">
+        <button class="bc-del" data-del="${esc(b.id)}" title="Eliminar del dispositivo">&times;</button>
         <div class="bc-title">${esc(b.title)}</div>
-        <div class="bc-meta">${esc(b.author||'')} ${b.author?'· ':''}${b.chapters} cap. · ${b.words.toLocaleString()} palabras</div>
-        ${b.chapters>0?`<div class="bc-progress"><div class="bc-progress-bar"><div class="bc-progress-fill" style="width:${pct}%"></div></div><div class="bc-progress-text">${read.length}/${b.chapters} leídos (${pct}%)</div></div>`:''}
+        <div class="bc-meta">${esc(b.author||'')} ${b.author?'· ':''}${nCh} cap. · ${words.toLocaleString()} palabras</div>
+        ${nCh>0?`<div class="bc-progress"><div class="bc-progress-bar"><div class="bc-progress-fill" style="width:${pct}%"></div></div><div class="bc-progress-text">${read.length}/${nCh} leídos (${pct}%)</div></div>`:''}
         ${resume}
       </div>`;
     }
     list.innerHTML=html;
     list.querySelectorAll('.book-card').forEach(c=>c.addEventListener('click',()=>openBook(c.dataset.id)));
+    list.querySelectorAll('.bc-del').forEach(d=>d.addEventListener('click',async e=>{
+      e.stopPropagation();
+      const id=d.dataset.del;
+      if(!confirm('¿Eliminar este libro del dispositivo?'))return;
+      try {
+        await idbDeleteBook(id);
+        localStorage.removeItem('spritz-progress-'+id);
+        localStorage.removeItem('spritz-read-'+id);
+        loadLibrary();
+      } catch(err){ showToast('No se pudo eliminar: '+err.message); }
+    }));
   } catch(err) {
     console.error('[spritz] loadLibrary failed:', err);
     list.innerHTML=`<div class="library-empty">Error cargando biblioteca: ${esc(err.message)}</div>`;
@@ -498,7 +540,8 @@ async function loadLibrary() {
 async function openBook(bookId) {
   loadingEl.classList.add('active'); loadingText.textContent='Cargando capítulos...';
   try {
-    const data=await fetchJSON(`/api/books/${encodeURIComponent(bookId)}`);
+    const data=await idbGetBook(bookId);
+    if(!data) throw new Error('El libro no está en este dispositivo');
     $('#ch-book-title').textContent=data.title;
     $('#ch-book-author').textContent=data.author||'';
     app.bookId=bookId;
@@ -533,9 +576,12 @@ async function openBook(bookId) {
 async function loadChapter(bookId,chIdx,fromWord=0) {
   loadingEl.classList.add('active'); loadingText.textContent='Cargando capítulo...';
   try {
-    const data=await fetchJSON(`/api/books/${encodeURIComponent(bookId)}/chapters/${chIdx}`);
-    app.bookId=bookId; app.chapterIdx=chIdx; app.totalChapters=data.total_chapters;
-    startReading(data.text, `${data.book_title} · ${data.chapter_title}`, fromWord);
+    const book=await idbGetBook(bookId);
+    if(!book) throw new Error('El libro no está en este dispositivo');
+    const ch=book.chapters[chIdx];
+    if(!ch) throw new Error('Capítulo no encontrado');
+    app.bookId=bookId; app.chapterIdx=chIdx; app.totalChapters=book.chapters.length;
+    startReading(ch.text, `${book.title} · ${ch.title}`, fromWord);
   } catch(err){
     console.error('[spritz] loadChapter failed:', err);
     loadingEl.classList.remove('active');
@@ -699,6 +745,7 @@ async function uploadFile() {
   try {
     const fd=new FormData(); fd.append('file',file);
     const data=await fetchJSON('/api/upload',{method:'POST',body:fd});
+    await idbPutBook(data);
     input.value=''; openBook(data.id);
   } catch(err){
     console.error('[spritz] upload failed:', err);

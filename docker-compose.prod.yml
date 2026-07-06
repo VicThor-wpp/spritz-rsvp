@@ -6,8 +6,6 @@ services:
     restart: unless-stopped
     ports:
       - "127.0.0.1:8035:8000"
-    volumes:
-      - ./books:/app/books
     environment:
       TZ: America/Montevideo
     logging:

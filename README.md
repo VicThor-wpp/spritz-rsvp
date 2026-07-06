@@ -23,25 +23,24 @@ Abrir `http://localhost:8765` en el navegador.
 
 ```
 spritz-rsvp/
-├── main.py                 # Servidor FastAPI
+├── main.py                 # Servidor FastAPI (convertidor stateless)
 ├── static/
-│   ├── index.html          # Frontend PWA
+│   ├── index.html          # Frontend PWA (biblioteca en IndexedDB)
 │   ├── manifest.json       # Manifiesto PWA
 │   └── sw.js               # Service Worker
-├── books/                  # Almacenamiento de libros (JSON)
+├── twa/                    # Proyecto Bubblewrap del APK nativo
 └── requirements.txt        # Dependencias Python
 ```
 
 ## API Endpoints
 
+El servidor no persiste contenido de usuarios (ADR-013): convierte y devuelve.
+La biblioteca vive en IndexedDB del navegador.
+
 | Método | Ruta | Descripción |
 |--------|------|-------------|
-| `POST` | `/api/extract` | Extraer texto desde URL |
-| `POST` | `/api/upload` | Subir PDF/EPUB/TXT y crear libro |
-| `GET` | `/api/books` | Listar biblioteca |
-| `GET` | `/api/books/{id}` | Obtener libro |
-| `GET` | `/api/books/{id}/chapters/{idx}` | Obtener capítulo |
-| `DELETE` | `/api/books/{id}` | Eliminar libro |
+| `POST` | `/api/extract` | Extraer texto desde URL (stateless) |
+| `POST` | `/api/upload` | Convertir PDF/EPUB/TXT → libro JSON completo (stateless) |
 
 ## Características
 
@@ -49,7 +48,7 @@ spritz-rsvp/
 - Delays variables para puntuación española (puntos, comas, signos de exclamación/interrogación)
 - Parsing de EPUB por capítulos (OPF spine + NCX)
 - Extracción de PDF vía PyMuPDF
-- Biblioteca de libros con persistencia JSON
+- Biblioteca local en tu navegador (IndexedDB) — nada de lo que subís queda en el servidor
 - Progreso de lectura guardado en localStorage
 - Vista split con divisor arrastrable (RSVP arriba, texto abajo)
 - Panel inferior de texto plano tipo ereader

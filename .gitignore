@@ -7,9 +7,6 @@ env/
 .env
 .env.local
 
-books/*
-!books/.gitkeep
-
 .DS_Store
 Thumbs.db
 *.swp
