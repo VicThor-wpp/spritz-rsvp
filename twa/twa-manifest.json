@@ -20,8 +20,8 @@
     "path": "./android.keystore",
     "alias": "pivot"
   },
-  "appVersionName": "0.4.0",
-  "appVersionCode": 1,
+  "appVersion": "0.5.0",
+  "appVersionCode": 2,
   "shortcuts": [],
   "generatorApp": "bubblewrap-cli",
   "webManifestUrl": "https://thefuture100.yr.com.uy/manifest.webmanifest",
