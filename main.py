@@ -249,9 +249,12 @@ async def extract(request: Request) -> JSONResponse:
             downloaded, output_format="json", include_tables=False
         )
         title = ""
+        author = ""
         if metadata:
             try:
-                title = json.loads(metadata).get("title", "")
+                meta = json.loads(metadata)
+                title = meta.get("title") or ""
+                author = meta.get("author") or ""
             except (json.JSONDecodeError, TypeError):
                 pass
         if not title:
@@ -260,7 +263,7 @@ async def extract(request: Request) -> JSONResponse:
                 title = re.sub(r"\s+", " ", m.group(1)).strip()
         if not text:
             return JSONResponse({"error": "could not extract text"}, status_code=422)
-        return JSONResponse({"title": title, "text": text, "url": url})
+        return JSONResponse({"title": title, "author": author, "text": text, "url": url})
     except Exception as exc:
         logger.exception("URL extract failed: %s", url)
         return JSONResponse({"error": str(exc)}, status_code=500)

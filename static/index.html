@@ -66,6 +66,13 @@
   .stats-strip .stat { flex:1; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:10px 4px; text-align:center; min-width:0; }
   .stats-strip .stat-v { font-size:17px; font-weight:700; }
   .stats-strip .stat-l { font-size:10px; color:var(--dim2); margin-top:2px; }
+  .lib-search {
+    width:100%; margin-bottom:12px; background:var(--surface);
+    border:1px solid var(--border); border-radius:var(--radius);
+    color:var(--text); font-family:inherit; font-size:14px;
+    padding:10px 12px; outline:none;
+  }
+  .lib-search:focus { border-color:var(--accent); }
   .wpm-presets { display:flex; gap:6px; justify-content:center; margin-top:6px; }
   .wpm-presets .preset { background:var(--surface); border:1px solid var(--border); color:var(--dim2); font-size:12px; font-weight:600; padding:5px 0; flex:1; max-width:72px; border-radius:8px; }
   .wpm-presets .preset.active { border-color:var(--accent); color:var(--text); }
@@ -184,12 +191,23 @@
   .split-reader .w { color:#c8c8c8; cursor:pointer; contain:layout style; }
   .split-reader .w.passed { color:#555; }
   .split-reader .w.current { color:var(--accent); font-weight:600; }
+  /* Temas del panel de texto: el RSVP de arriba queda siempre oscuro */
+  .split-reader.sepia { background:#f2e8d5; color:#59462f; }
+  .split-reader.sepia .w { color:#59462f; }
+  .split-reader.sepia .w.passed { color:#b9ab8c; }
+  .split-reader.sepia .w.current { color:#c0392b; }
+  .split-reader.light { background:#fafafa; color:#2b2b2b; }
+  .split-reader.light .w { color:#2b2b2b; }
+  .split-reader.light .w.passed { color:#b8b8b8; }
+  .split-reader.light .w.current { color:#c0392b; }
 
   /* Controls bar */
   .reader-controls {
     padding:10px 16px 14px; display:flex; flex-direction:column; gap:8px;
     flex-shrink:0; border-top:1px solid var(--border); background:var(--bg);
   }
+  /* El wrapper agranda la zona de toque sin engordar la barra visual */
+  .progress-tap { padding:8px 0; margin:-8px 0; cursor:pointer; touch-action:none; }
   .progress-bar { width:100%; height:3px; background:var(--border); border-radius:2px; overflow:hidden; }
   .progress-bar .fill { height:100%; background:var(--accent); transition:width .1s linear; width:0%; }
   .wpm-row { display:flex; align-items:center; gap:10px; }
@@ -308,6 +326,7 @@
     <span class="fs-controls">
       <button class="fs-btn" id="btn-fs-dec" title="Letra más chica">A&minus;</button>
       <button class="fs-btn" id="btn-fs-inc" title="Letra más grande">A+</button>
+      <button class="fs-btn" id="btn-theme" title="Tema del texto">&#9681;</button>
     </span>
     <span id="reader-progress"></span>
   </div>
@@ -321,7 +340,7 @@
     <div class="split-reader" id="split-reader"></div>
   </div>
   <div class="reader-controls">
-    <div class="progress-bar"><div class="fill" id="progress-fill"></div></div>
+    <div class="progress-tap" id="progress-tap"><div class="progress-bar"><div class="fill" id="progress-fill"></div></div></div>
     <div class="wpm-row">
       <label>WPM</label>
       <input type="range" id="wpm-slider" min="100" max="900" value="350" step="10">
@@ -418,7 +437,35 @@ function wordDelay(w, base) {
   else if ('\u00bf\u00a1'.includes(last)) f *= 1.2;
   return base * f;
 }
-function tokenize(t) { return t.split(/\s+/).filter(w=>w.length>0); }
+// Tokeniza recordando qué palabras cierran un párrafo: split(/\s+/) colapsa los
+// \n y el flujo RSVP perdía el respiro más importante del texto.
+function tokenizeWithParas(t) {
+  const words=[], paraEnds=new Set();
+  for(const p of t.split(/\n+/)){
+    const ws=p.trim().split(/\s+/).filter(w=>w.length>0);
+    if(!ws.length) continue;
+    for(const w of ws) words.push(w);
+    paraEnds.add(words.length-1);
+  }
+  return {words, paraEnds};
+}
+// Palabras muy largas se muestran en segmentos sucesivos ("dificultosam·"
+// → "·ente,") en vez de encogerse hasta lo ilegible (el piso 0.4 de fitCurrentWord
+// queda como red de seguridad para casos patológicos).
+const CHUNK_MAX=14, CHUNK_TARGET=12;
+function chunkWord(w) {
+  const chars=[...w];
+  if(chars.length<=CHUNK_MAX) return [w];
+  const n=Math.ceil(chars.length/CHUNK_TARGET), size=Math.ceil(chars.length/n);
+  const parts=[];
+  for(let i=0;i<chars.length;i+=size){
+    let part=chars.slice(i,i+size).join('');
+    if(i>0) part='·'+part;
+    if(i+size<chars.length) part+='·';
+    parts.push(part);
+  }
+  return parts;
+}
 function renderWord(w) {
   const i=orpIndex(w);
   return `<span class="word-inner">${esc(w.slice(0,i))}<span class="orp">${esc(w[i]||'')}</span>${esc(w.slice(i+1))}</span>`;
@@ -447,11 +494,32 @@ function fitCurrentWord() {
 
 // ==================== STATE ====================
 const app = {
-  words:[], rawText:'', index:0, wpm:350, playing:false, timer:null,
+  words:[], rawText:'', index:0, sub:0, wpm:350, playing:false, timer:null,
   bookId:null, chapterIdx:null, totalChapters:0,
   splitRatio: 0.4,
+  paraEnds:null, ramp:0, hasPlayed:false,
 };
 window.app = app;
+
+// Ritmo de reproducción: el costo cognitivo del RSVP está en las transiciones,
+// no en la velocidad sostenida — por eso rampa de arranque y rebobinado al reanudar.
+const RAMP_WORDS=10, RAMP_EXTRA=0.7; // arranca a ~59% de la velocidad, acelera en 10 palabras
+const REWIND_WORDS=4;                // contexto al reanudar tras una pausa
+const PARA_FACTOR=1.8;               // respiro extra sobre la palabra que cierra un párrafo
+
+// ==================== WAKE LOCK ====================
+// Leer RSVP es mirar sin tocar: sin wake lock la pantalla se apaga a mitad de
+// capítulo. Se pide al reproducir y se suelta al pausar; el browser lo libera
+// solo al ocultarse la pestaña (y ahí también pausamos).
+let _wakeLock=null;
+async function acquireWakeLock() {
+  if(!('wakeLock' in navigator)) return;
+  try { _wakeLock=await navigator.wakeLock.request('screen'); }
+  catch(err){ console.warn('[spritz] wakeLock:', err); }
+}
+function releaseWakeLock() {
+  if(_wakeLock){ _wakeLock.release().catch(()=>{}); _wakeLock=null; }
+}
 
 // ==================== PERSISTENCE ====================
 function getProgress(bid) {
@@ -621,7 +689,15 @@ btnBack.addEventListener('click', () => {
     app.splitRatio = ratio;
     applySplit();
   });
-  splitHandle.addEventListener('pointerup', () => { dragging=false; });
+  // pointercancel: si el gesto lo interrumpe el sistema (llamada, notificación),
+  // sin esto `dragging` quedaba trabado en true.
+  const endDrag = () => {
+    if(!dragging) return;
+    dragging=false;
+    try { localStorage.setItem('spritz-split',String(app.splitRatio)); } catch(err){ /* quota — no crítico */ }
+  };
+  splitHandle.addEventListener('pointerup', endDrag);
+  splitHandle.addEventListener('pointercancel', endDrag);
 })();
 
 function applySplit() {
@@ -680,12 +756,16 @@ async function loadLibrary() {
         <div class="stat"><div class="stat-v">${avg||'–'}</div><div class="stat-l">wpm promedio</div></div>
       </div>`;
     }
+    if(books.length>6){
+      html+=`<input class="lib-search" id="lib-search" type="search" placeholder="Buscar por título o autor...">`;
+    }
     for(const b of books){
       const nCh=b.chapters.length, words=b.chapters.reduce((s,c)=>s+c.words,0);
       const prog=getProgress(b.id), read=getReadChapters(b.id);
       const pct=nCh>0?(read.length/nCh*100).toFixed(0):0;
       const resume=prog?`<div class="bc-resume">Continuar: cap. ${prog.chapterIdx+1}, palabra ${prog.wordIndex}</div>`:'';
-      html+=`<div class="book-card" data-id="${esc(b.id)}">
+      const searchKey=esc(((b.title||'')+' '+(b.author||'')).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''));
+      html+=`<div class="book-card" data-id="${esc(b.id)}" data-search="${searchKey}">
         <button class="bc-del" data-del="${esc(b.id)}" title="Eliminar del dispositivo">&times;</button>
         <div class="bc-row">
           <div class="bc-cover" style="${coverStyle(b.id)}">${esc((b.title||'?').trim()[0].toUpperCase())}</div>
@@ -701,6 +781,15 @@ async function loadLibrary() {
     list.innerHTML=html;
     if(latest){
       $('#continue-hero').addEventListener('click',()=>loadChapter(latest.b.id,latest.p.chapterIdx,latest.p.wordIndex));
+    }
+    const search=$('#lib-search');
+    if(search){
+      search.addEventListener('input',()=>{
+        const q=search.value.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+        list.querySelectorAll('.book-card').forEach(c=>{
+          c.style.display=(!q||(c.dataset.search||'').includes(q))?'':'none';
+        });
+      });
     }
     list.querySelectorAll('.book-card').forEach(c=>c.addEventListener('click',()=>openBook(c.dataset.id)));
     list.querySelectorAll('.bc-del').forEach(d=>d.addEventListener('click',async e=>{
@@ -782,13 +871,14 @@ async function loadChapter(bookId,chIdx,fromWord=0) {
 
 // ==================== SPLIT READER ====================
 function startReading(text, title, fromWord=0) {
-  const words=tokenize(text);
+  const {words,paraEnds}=tokenizeWithParas(text);
   if(!words.length){
     loadingEl.classList.remove('active');
     showToast('No hay texto para leer.');
     return;
   }
   app.words=words; app.rawText=text; app.index=fromWord; app.title=title;
+  app.paraEnds=paraEnds; app.sub=0; app.hasPlayed=false;
   readerInfo.textContent=title||`${words.length} palabras`;
 
   const nav=$('#chapter-nav');
@@ -878,7 +968,8 @@ function displayCurrentWord() {
     if(app.bookId&&app.chapterIdx!==null){markChapterRead(app.bookId,app.chapterIdx);saveProgress();}
     return;
   }
-  wordDisplay.innerHTML=renderWord(app.words[app.index]);
+  const chunks=currentChunks();
+  wordDisplay.innerHTML=renderWord(chunks[Math.min(app.sub,chunks.length-1)]);
   fitCurrentWord();
   const pct=(app.index/app.words.length*100).toFixed(0);
   progressFill.style.width=pct+'%';
@@ -890,48 +981,83 @@ function displayCurrentWord() {
   maybeScrollToCurrent();
 }
 
+function currentChunks() { return chunkWord(app.words[app.index]??''); }
+
 function tick() {
   if(!app.playing) return;
-  app.index++; displayCurrentWord();
-  if(app.index%20===0) debouncedSave();
+  const chunks=currentChunks();
+  if(app.sub<chunks.length-1){ app.sub++; }
+  else { app.sub=0; app.index++; }
+  displayCurrentWord();
   if(app.index>=app.words.length) return;
+  if(app.sub===0&&app.index%20===0) debouncedSave();
+  scheduleNext();
+}
+
+// Programa el próximo tick según la palabra (o segmento) actualmente visible,
+// así la pausa por puntuación o fin de párrafo cae sobre la palabra que la
+// causa (antes se calculaba con la palabra anterior y la demora aterrizaba
+// una palabra tarde).
+function scheduleNext() {
   const base=60000/app.wpm;
-  const delay=wordDelay(app.words[app.index-1],base);
-  _pend.words++; _pend.ms+=delay;
+  const chunks=currentChunks();
+  let delay=wordDelay(chunks[Math.min(app.sub,chunks.length-1)]||'',base);
+  if(app.sub===chunks.length-1&&app.paraEnds&&app.paraEnds.has(app.index)) delay*=PARA_FACTOR;
+  if(app.ramp>0){ delay*=1+RAMP_EXTRA*(app.ramp/RAMP_WORDS); app.ramp--; }
+  if(app.sub===0) _pend.words++;
+  _pend.ms+=delay;
   if(_pend.words>=100) flushStats();
   app.timer=setTimeout(tick, delay);
 }
 
-function play() {
+function play(rampWords=RAMP_WORDS) {
   if(app.index>=app.words.length) return;
-  app.playing=true; btnPlay.innerHTML='&#9646;&#9646;'; tick();
+  app.hasPlayed=true;
+  app.ramp=rampWords;
+  app.playing=true; btnPlay.innerHTML='&#9646;&#9646;';
+  acquireWakeLock();
+  displayCurrentWord();
+  scheduleNext();
 }
 function stop() {
   app.playing=false; clearTimeout(app.timer);
   btnPlay.innerHTML='&#9654;';
+  releaseWakeLock();
   if(app.bookId) saveProgress();
   flushStats();
 }
-function togglePlay() { app.playing?stop():play(); }
-function reset() { stop(); app.index=0; displayCurrentWord(); scrollToSpan(0); }
+// Reanudar tras una pausa retrocede unas palabras para recuperar el hilo sin
+// el skip(-10) manual. Solo aplica a resume (no al arranque ni a los saltos).
+function resumeWithContext() {
+  if(app.hasPlayed&&app.index>0&&app.index<app.words.length){
+    app.index=Math.max(0,app.index-REWIND_WORDS); app.sub=0;
+  }
+  play();
+}
+function togglePlay() { app.playing?stop():resumeWithContext(); }
+function reset() { stop(); app.index=0; app.sub=0; displayCurrentWord(); scrollToSpan(0); }
 function skip(n) {
+  const wasPlaying=app.playing;
   stop();
   app.index=Math.max(0,Math.min(app.words.length-1,app.index+n));
+  app.sub=0;
   displayCurrentWord();
   scrollToSpan(app.index);
   debouncedSave();
+  if(wasPlaying) play(4); // rampa corta: el salto ya te ubicó, no hace falta arrancar tan lento
 }
 
 function seekToWord(i) {
   const target = Math.max(0, Math.min(app.words.length - 1, i));
   clearTimeout(app.timer);
-  app.index = target;
+  app.index = target; app.sub = 0;
   displayCurrentWord();
   scrollToSpan(target);
   debouncedSave();
-  if (!app.playing) { app.playing = true; btnPlay.innerHTML='&#9646;&#9646;'; }
-  const base = 60000 / app.wpm;
-  app.timer = setTimeout(tick, wordDelay(app.words[target], base));
+  if (!app.playing) { app.playing = true; btnPlay.innerHTML='&#9646;&#9646;'; acquireWakeLock(); }
+  app.hasPlayed = true;
+  app.ramp = 4;
+  scheduleNext();
 }
 
 // ==================== UPLOAD ====================
@@ -961,7 +1087,7 @@ async function extractUrl() {
     const data=await fetchJSON('/api/extract',{
       method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({url})
     });
-    const book=await saveTextAsBook(data.title||url, data.text);
+    const book=await saveTextAsBook(data.title||url, data.text, data.author||'');
     urlInput.value='';
     showToast(`Guardado en biblioteca: ${book.title}`, 'info', 2500);
     openBook(book.id);
@@ -1011,6 +1137,23 @@ function bumpReaderFs(d){
 }
 $('#btn-fs-dec').addEventListener('click',()=>bumpReaderFs(-1));
 $('#btn-fs-inc').addEventListener('click',()=>bumpReaderFs(1));
+
+// Tema del panel de texto (el RSVP queda siempre oscuro): oscuro → sepia → claro
+const READER_THEMES=['dark','sepia','light'];
+const READER_THEME_LABELS={dark:'oscuro',sepia:'sepia',light:'claro'};
+function setReaderTheme(t){
+  if(!READER_THEMES.includes(t)) t='dark';
+  splitReader.classList.remove('sepia','light');
+  if(t!=='dark') splitReader.classList.add(t);
+  try { localStorage.setItem('spritz-reader-theme',t); } catch(err){ /* quota — no crítico */ }
+  return t;
+}
+$('#btn-theme').addEventListener('click',()=>{
+  const cur=localStorage.getItem('spritz-reader-theme')||'dark';
+  const next=READER_THEMES[(READER_THEMES.indexOf(cur)+1)%READER_THEMES.length];
+  setReaderTheme(next);
+  showToast('Tema: '+READER_THEME_LABELS[next],'info',900);
+});
 $('#btn-prev-ch').addEventListener('click',()=>{if(!app.bookId||app.chapterIdx<=0)return;stop();loadChapter(app.bookId,app.chapterIdx-1);});
 $('#btn-next-ch').addEventListener('click',()=>{if(!app.bookId||app.chapterIdx>=app.totalChapters-1)return;stop();loadChapter(app.bookId,app.chapterIdx+1);});
 
@@ -1024,8 +1167,32 @@ document.addEventListener('keydown',e=>{
   if(e.code==='Escape')closeReader();
 });
 
-// Tap RSVP to toggle
-wordDisplay.addEventListener('click',togglePlay);
+// Tap zones en el panel RSVP (patrón de reproductores de video):
+// tercio izquierdo -10 palabras, derecho +10, centro play/pausa.
+splitRsvp.addEventListener('click',e=>{
+  const r=splitRsvp.getBoundingClientRect();
+  const x=(e.clientX-r.left)/r.width;
+  if(x<0.25) skip(-10);
+  else if(x>0.75) skip(10);
+  else togglePlay();
+});
+
+// Barra de progreso seekeable: tap o arrastre para saltar a cualquier punto
+(function initProgressSeek(){
+  const tap=$('#progress-tap');
+  let down=false;
+  const seekAt=e=>{
+    if(!app.words.length) return;
+    const r=tap.getBoundingClientRect();
+    const frac=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));
+    seekToWord(Math.round(frac*(app.words.length-1)));
+  };
+  tap.addEventListener('pointerdown',e=>{ down=true; tap.setPointerCapture(e.pointerId); seekAt(e); });
+  tap.addEventListener('pointermove',e=>{ if(down) seekAt(e); });
+  const up=()=>{ down=false; };
+  tap.addEventListener('pointerup',up);
+  tap.addEventListener('pointercancel',up);
+})();
 
 // Click ereader: seek to clicked word (continue from there) or toggle play if no word hit
 splitReader.addEventListener('click', (e) => {
@@ -1037,9 +1204,13 @@ splitReader.addEventListener('click', (e) => {
   togglePlay();
 });
 
-// Save on hide
+// Auto-pausa al ocultarse: en background los timers se throttlean (~1/seg) y
+// las palabras corrían sin ser vistas — volvías decenas de palabras adelante.
 document.addEventListener('visibilitychange',()=>{
-  if(document.hidden){ if(app.bookId)saveProgress(); flushStats(); }
+  if(!document.hidden) return;
+  if(app.playing){ stop(); return; } // stop() ya guarda progreso y flushea stats
+  if(app.bookId) saveProgress();
+  flushStats();
 });
 
 // Resize
@@ -1146,6 +1317,9 @@ if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
 // Init
 setWpm(localStorage.getItem('spritz-wpm')||350);
 setReaderFs(localStorage.getItem('spritz-reader-fs')||17);
+setReaderTheme(localStorage.getItem('spritz-reader-theme')||'dark');
+const _savedSplit=parseFloat(localStorage.getItem('spritz-split'));
+if(_savedSplit>=0.15&&_savedSplit<=0.7) app.splitRatio=_savedSplit;
 loadLibrary();
 </script>
 </body>

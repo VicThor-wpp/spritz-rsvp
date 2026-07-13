@@ -4,6 +4,45 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.10.0] - 2026-07-13
+
+### Added
+
+- **Screen wake lock while playing.** RSVP reading is hands-off, so the screen
+  used to sleep mid-chapter; now `navigator.wakeLock` is acquired on play and
+  released on pause/stop.
+- **Ramp-up start and context rewind.** Playback starts at ~59% of the target
+  speed and accelerates over the first 10 words; resuming after a pause rewinds
+  4 words so you recover the thread without the manual `«` trip. Skips and
+  seeks get a short 4-word ramp.
+- **Paragraph pauses.** Tokenization now remembers which words close a
+  paragraph (`split(/\s+/)` used to collapse the `\n`s) and the RSVP flow
+  breathes ×1.8 on them.
+- **Long-word segmentation.** Words over 14 chars display as successive
+  segments ("dificultosam·" → "·ente,") instead of shrinking toward the 0.4
+  scale floor; the ereader panel and progress still count them as one word.
+- **Tap zones on the RSVP panel** (video-player pattern): left third −10 words,
+  right third +10, center play/pause. Jumps during playback keep playing.
+- **Seekable progress bar**: tap or drag to jump anywhere in the chapter.
+- **Reader panel themes**: dark → sepia → light toggle (◐) for the bottom text
+  panel; the RSVP panel stays dark. Persisted.
+- **Library search** by title/author (accent-insensitive), shown when the
+  library has more than 6 books.
+- **Article author** from `/api/extract` (trafilatura metadata) now lands on
+  the book card.
+- Split-panel ratio persists across sessions.
+
+### Fixed
+
+- **Auto-pause when the app is hidden.** Backgrounded timers are throttled, so
+  words kept "advancing" unseen and you came back dozens of words ahead.
+- **Punctuation pause landed one word late**: the delay was computed from the
+  previous word, so the lingering happened on the word *after* the period. The
+  pause now sits on the word that causes it.
+- **Split-handle drag could get stuck** when the system cancelled the gesture
+  (incoming call, notification): `pointercancel` is now handled.
+- SW cache bumped to `pivot-v15`.
+
 ## [0.9.0] - 2026-07-13
 
 ### Removed
