@@ -1,31 +1,28 @@
 # Pivot — Production Deploy
 
 > Infra names (`spritz-app` container, `spritz-rsvp` image, `/root/spritz` repo
-> path, GitHub repo) keep the legacy "spritz" prefix until the DNS migration to
-> `pivot.yr.com.uy` — renaming them buys nothing and would break the running
-> deploy recipe.
+> path, GitHub repo) keep the legacy "spritz" prefix — renaming them buys
+> nothing and would break the running deploy recipe. The public domain is
+> `rsvp.yr.com.uy`; the app is branded "Pivot".
 
-## Current deployment (temporary)
+## Current deployment
 
-While the DNS for `pivot.yr.com.uy` is not yet set up, the app reuses the
-existing `thefuture100.yr.com.uy` vhost and its SSL cert.
+Live at **https://rsvp.yr.com.uy/** since 2026-07-13.
 
-- **URL:** https://thefuture100.yr.com.uy/
+- **URL:** https://rsvp.yr.com.uy/
 - **Container:** `spritz-app` on `127.0.0.1:8035`
 - **Repo path on server:** `/root/spritz/`
-- **The `thefuture100-app` container is untouched**, still running on
-  `127.0.0.1:8030`. The original nginx vhost was backed up to
-  `/etc/nginx/sites-available/thefuture100.backup-YYYY-MM-DD`.
+- **nginx vhost:** `/etc/nginx/sites-available/rsvp` (from `deploy/nginx-rsvp.conf`)
+- **SSL:** Let's Encrypt cert for `rsvp.yr.com.uy`, auto-renewed by certbot.
 
-To restore thefuture100 to that URL, replace
-`/etc/nginx/sites-available/thefuture100` with the backup and reload nginx.
+This VPS is shared. nginx has no explicit `default_server`, so any hostname
+without a matching vhost falls through to the first server block loaded
+(currently `ai-flow`) — which is why a missing `rsvp` vhost previously served
+the wrong app under an expired cert. The `rsvp` vhost below fixes that.
 
 ## Canonical target
 
-When DNS for `yr.com.uy` is available, switch to `pivot.yr.com.uy`.
-The recipe below documents that canonical setup.
-
-Target: **`pivot.yr.com.uy`** → VPS at `64.23.146.116` → container on `127.0.0.1:8035`.
+Target: **`rsvp.yr.com.uy`** → VPS at `64.23.146.116` → container on `127.0.0.1:8035`.
 
 ## Architecture
 
@@ -50,12 +47,12 @@ Add A record at your DNS provider for `yr.com.uy`:
 
 | Type | Name | Value | TTL |
 |---|---|---|---|
-| A | pivot | 64.23.146.116 | 300 |
+| A | rsvp | 64.23.146.116 | 300 |
 
 Verify propagation (may take 5-30 min):
 
 ```bash
-dig +short pivot.yr.com.uy
+dig +short rsvp.yr.com.uy
 # should output: 64.23.146.116
 ```
 
@@ -77,16 +74,16 @@ ssh root@64.23.146.116 'git clone https://github.com/VicThor-wpp/spritz-rsvp.git
 Install nginx vhost (HTTP only — certbot will add SSL automatically):
 
 ```bash
-scp deploy/nginx-pivot.conf root@64.23.146.116:/etc/nginx/sites-available/pivot
+scp deploy/nginx-rsvp.conf root@64.23.146.116:/etc/nginx/sites-available/rsvp
 ssh root@64.23.146.116 '\
-  ln -sf /etc/nginx/sites-available/pivot /etc/nginx/sites-enabled/pivot && \
+  ln -sf /etc/nginx/sites-available/rsvp /etc/nginx/sites-enabled/rsvp && \
   nginx -t && systemctl reload nginx'
 ```
 
 Obtain SSL certificate:
 
 ```bash
-ssh root@64.23.146.116 'certbot --nginx -d pivot.yr.com.uy --non-interactive --agree-tos --email admin@yr.com.uy --redirect'
+ssh root@64.23.146.116 'certbot --nginx -d rsvp.yr.com.uy --non-interactive --agree-tos --email admin@yr.com.uy --redirect'
 ```
 
 ### 3. Build and run
@@ -100,10 +97,14 @@ ssh root@64.23.146.116 'cd /root/spritz && \
 ### 4. Verify
 
 ```bash
-ssh root@64.23.146.116 'curl -fsS http://127.0.0.1:8035/api/books'
-curl -fsS https://pivot.yr.com.uy/api/books
-# both should return: []
+# Container serves the app (HTTP 200, title "Pivot — Lector RSVP")
+ssh root@64.23.146.116 'curl -fsS -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8035/'
+# Public URL with a valid cert (ssl_verify_result must be 0)
+curl -fsS -o /dev/null -w "HTTP %{http_code} | ssl_verify=%{ssl_verify_result}\n" https://rsvp.yr.com.uy/
 ```
+
+> Since v0.6.0 (ADR-013) the server stores no user content, so there is no
+> `/api/books` endpoint to probe — a 200 on `/` is the health signal.
 
 ## Subsequent deploys
 
@@ -197,10 +198,14 @@ cp app-release-signed.apk ../static/pivot.apk
 # bump appVersionCode in twa-manifest.json on every release
 ```
 
-### Domain migration checklist (thefuture100 → pivot.yr.com.uy)
+### Domain migration checklist (→ rsvp.yr.com.uy)
+
+The web deploy already lives at `rsvp.yr.com.uy`. The APK still points at the
+old domain until it is rebuilt — do this next time you cut an APK:
 
 1. Update `host`, `webManifestUrl`, `fullScopeUrl`, `iconUrl`, `maskableIconUrl`
-   in `twa/twa-manifest.json`; bump `appVersionCode`
+   in `twa/twa-manifest.json` to `rsvp.yr.com.uy`; bump `appVersionCode`
+   (already done in the repo — the values point at `rsvp.yr.com.uy`)
 2. Rebuild (same keystore — the fingerprint and `assetlinks.json` stay valid)
 3. Users must install the new APK (the old one points at the old domain)
 

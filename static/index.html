@@ -142,12 +142,17 @@
   .orp-line {
     position:absolute; left:50%; top:15%; bottom:15%;
     width:2px; background:var(--accent); opacity:.2; pointer-events:none;
+    transform:translateX(-50%);
   }
   .word-display {
     font-size:clamp(32px,9vw,68px); font-weight:700; letter-spacing:2px;
-    white-space:nowrap; text-align:center;
+    white-space:nowrap; display:flex; width:100%; justify-content:center;
   }
-  .word-display .orp { color:var(--accent); }
+  /* ORP alignment: the two side cells grow equally, so the pivot glyph is
+     pinned dead-center on the reticle regardless of prefix/suffix length. */
+  .word-display .wd-pre  { flex:1 1 0; min-width:0; text-align:right; }
+  .word-display .orp     { flex:0 0 auto; color:var(--accent); }
+  .word-display .wd-post { flex:1 1 0; min-width:0; text-align:left; }
   .rsvp-meta {
     font-size:11px; color:var(--dim); margin-top:6px; text-align:center;
     padding:0 16px;
@@ -414,7 +419,7 @@ function wordDelay(w, base) {
 function tokenize(t) { return t.split(/\s+/).filter(w=>w.length>0); }
 function renderWord(w) {
   const i=orpIndex(w);
-  return `${esc(w.slice(0,i))}<span class="orp">${esc(w[i]||'')}</span>${esc(w.slice(i+1))}`;
+  return `<span class="wd-pre">${esc(w.slice(0,i))}</span><span class="orp">${esc(w[i]||'')}</span><span class="wd-post">${esc(w.slice(i+1))}</span>`;
 }
 
 // ==================== STATE ====================

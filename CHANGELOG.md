@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Fixed
+
+- **ORP alignment**: the pivot (red) letter is now pinned dead-center on the
+  reticle instead of the whole word being block-centered — so it stayed put
+  only when prefix and suffix happened to be equal length (e.g. "ConceptSMILE,"
+  drifted left). The word display is now a 3-cell flex layout (`.wd-pre` /
+  `.orp` / `.wd-post`) where the side cells grow equally, keeping the pivot on
+  the guide line regardless of word shape. No per-word JS/reflow. Verified at
+  Δ=0.00px across word lengths. SW cache bumped to `pivot-v11`.
+
+### Changed
+
+- **Production domain is now `rsvp.yr.com.uy`** (live 2026-07-13). Added the
+  nginx vhost `deploy/nginx-rsvp.conf` and issued a Let's Encrypt cert; the app
+  container (`spritz-app` on `:8035`) was already running. Updated `DEPLOY.md`
+  and pointed the TWA manifest (`twa/twa-manifest.json`, `appVersionCode` 2→3)
+  at the new domain — the APK needs a rebuild + reinstall to actually follow it.
+  `deploy/nginx-pivot.conf` renamed to `deploy/nginx-rsvp.conf`.
+
 ## [0.8.1] - 2026-07-06
 
 ### Added
