@@ -4,6 +4,33 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.11.0] - 2026-07-13
+
+### Added
+
+- **Paragraph boundary dot.** A small red dot under the reticle appears while
+  the last word of a paragraph (and the first of the next) is displayed, so the
+  extended pause reads as "the text breathes here" instead of a glitch. It sits
+  in the periphery of the fixation point — no eye movement needed.
+- **Numbers and acronyms slow down** (×1.3 / ×1.2): they are decoded
+  character-by-character, not recognized as word shapes.
+
+### Changed
+
+- **Long-word segmentation is now Spanish-syllable-aware.** Cuts fall on
+  syllable boundaries (V-CV / VC-CV rule) and never split digraphs (ch, ll,
+  rr) or inseparable onset clusters (pr, bl, tr, ...): "dificultosa·/·mente,"
+  instead of "dificultosam·/·ente,". Falls back to hard cuts for words with no
+  usable boundary or non-BMP chars (emoji).
+
+### Fixed
+
+- **ORP landed on punctuation.** The pivot index was computed over the raw
+  token, so Spanish-frequent leading marks (¡ ¿ « — ") both received the pivot
+  and inflated the word length: "¡Dorotea!" now pivots on the alphabetic core
+  ("Dorotea") like a 7-letter word.
+- SW cache bumped to `pivot-v16`.
+
 ## [0.10.0] - 2026-07-13
 
 ### Added

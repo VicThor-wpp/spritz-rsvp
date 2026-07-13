@@ -153,6 +153,15 @@
     width:2px; background:var(--accent); opacity:.2; pointer-events:none;
     transform:translateX(-50%);
   }
+  /* Puntito bajo la retícula que marca la frontera de párrafo (última palabra
+     de uno y primera del siguiente) — en la periferia del punto de fijación,
+     visible sin mover el ojo. */
+  .para-dot {
+    position:absolute; left:35%; bottom:10%; width:8px; height:8px;
+    border-radius:50%; background:var(--accent); opacity:0;
+    transform:translateX(-50%); transition:opacity .15s; pointer-events:none;
+  }
+  .para-dot.show { opacity:.85; }
   .word-display {
     font-size:clamp(32px,9vw,68px); font-weight:700; letter-spacing:2px;
     white-space:nowrap; width:100%; text-align:left;
@@ -333,6 +342,7 @@
   <div class="split-container" id="split-container">
     <div class="split-rsvp" id="split-rsvp">
       <div class="orp-line"></div>
+      <div class="para-dot" id="para-dot"></div>
       <div class="word-display" id="word-display">.</div>
       <div class="rsvp-meta" id="rsvp-meta"></div>
     </div>
@@ -411,9 +421,19 @@ async function fetchJSON(url, opts){
 }
 
 // ==================== ORP ====================
-function orpIndex(w) {
-  const l=w.length; if(l<=1)return 0; if(l<=3)return 1;
+function orpCoreIndex(l) {
+  if(l<=1)return 0; if(l<=3)return 1;
   if(l<=5)return 2; if(l<=9)return 3; if(l<=13)return 4; return 5;
+}
+// El pivote va sobre el núcleo alfabético: en español la puntuación inicial es
+// frecuente (¡ ¿ « — ") y no debe recibir el ORP ni inflar el largo de la
+// palabra ("¡Dorotea!" pivota como "Dorotea", no como palabra de 9).
+function orpIndex(w) {
+  const m=/[\p{L}\p{N}]/u.exec(w);
+  if(!m) return orpCoreIndex(w.length);
+  let end=w.length-1;
+  while(end>m.index && !/[\p{L}\p{N}]/u.test(w[end])) end--;
+  return m.index+orpCoreIndex(end-m.index+1);
 }
 function wordDelay(w, base) {
   const len = [...w].length;
@@ -427,6 +447,10 @@ function wordDelay(w, base) {
   else if (len <= 8) f = 1.04 + (len - 7) * 0.04;
   else if (len <= 12) f = 1.14 + (len - 9) * 0.05;
   else f = Math.min(1.55, 1.34 + (len - 13) * 0.04);
+  // Números y siglas se decodifican más lento que palabras (no se "reconocen",
+  // se leen carácter a carácter).
+  if (/\d/.test(w)) f *= 1.3;
+  else if (len >= 2 && !/\p{Ll}/u.test(w) && /\p{Lu}.*\p{Lu}/su.test(w)) f *= 1.2;
   const last = w[w.length - 1];
   if (w.endsWith('...') || w.endsWith('\u2026')) f *= 1.55;
   else if ('.!?'.includes(last)) f *= 1.85;
@@ -449,13 +473,36 @@ function tokenizeWithParas(t) {
   }
   return {words, paraEnds};
 }
-// Palabras muy largas se muestran en segmentos sucesivos ("dificultosam·"
-// → "·ente,") en vez de encogerse hasta lo ilegible (el piso 0.4 de fitCurrentWord
-// queda como red de seguridad para casos patológicos).
+// Palabras muy largas se muestran en segmentos sucesivos ("dificultosa·"
+// → "·mente,") en vez de encogerse hasta lo ilegible (el piso 0.4 de
+// fitCurrentWord queda como red de seguridad). Los cortes caen en fronteras
+// de sílaba del español — regla V-CV / VC-CV, sin partir dígrafos (ch, ll,
+// rr) ni grupos consonánticos inseparables (pr, bl, tr, ...) — como la
+// separación de guiones de imprenta.
 const CHUNK_MAX=14, CHUNK_TARGET=12;
-function chunkWord(w) {
+const SP_VOWELS='aeiouáéíóúü';
+const SP_CLUSTERS=new Set(['pr','br','tr','dr','cr','gr','fr','kr','pl','bl','cl','gl','fl','kl','tl','ch','ll','rr']);
+const isSpLetter=c=>/[a-zñáéíóúü]/.test(c);
+// Índices donde es válido cortar (antes de consonante+vocal; el grupo
+// inseparable viaja entero con la sílaba siguiente: "a·pren·der").
+function syllableCuts(w) {
+  const lw=w.toLowerCase(), cuts=[];
+  for(let i=1;i<lw.length-1;i++){
+    const prev=lw[i-1], cur=lw[i], next=lw[i+1];
+    if(!isSpLetter(prev)||!isSpLetter(cur)||!isSpLetter(next)) continue;
+    if(SP_VOWELS.includes(cur)||!SP_VOWELS.includes(next)) continue;
+    if(SP_CLUSTERS.has(prev+cur)){
+      if(i>1&&isSpLetter(lw[i-2])&&cuts[cuts.length-1]!==i-1) cuts.push(i-1);
+      continue;
+    }
+    cuts.push(i);
+  }
+  return cuts;
+}
+// Corte duro por codepoints: fallback para palabras sin fronteras útiles o
+// con caracteres fuera del BMP (emoji), donde los índices de string mienten.
+function hardChunks(w) {
   const chars=[...w];
-  if(chars.length<=CHUNK_MAX) return [w];
   const n=Math.ceil(chars.length/CHUNK_TARGET), size=Math.ceil(chars.length/n);
   const parts=[];
   for(let i=0;i<chars.length;i+=size){
@@ -464,6 +511,22 @@ function chunkWord(w) {
     if(i+size<chars.length) part+='·';
     parts.push(part);
   }
+  return parts;
+}
+function chunkWord(w) {
+  if([...w].length<=CHUNK_MAX) return [w];
+  if(/[\uD800-\uDFFF]/.test(w)) return hardChunks(w);
+  const cuts=syllableCuts(w);
+  const parts=[]; let start=0;
+  while(w.length-start>CHUNK_MAX){
+    const limit=start+CHUNK_TARGET;
+    let cut=-1;
+    for(const c of cuts){ if(c>start+3&&c<=limit&&w.length-c>=4) cut=c; }
+    if(cut<0) cut=Math.min(limit,w.length-4); // sin sílaba a mano: corte duro
+    parts.push((start>0?'·':'')+w.slice(start,cut)+'·');
+    start=cut;
+  }
+  parts.push('·'+w.slice(start));
   return parts;
 }
 function renderWord(w) {
@@ -649,7 +712,7 @@ const textInput=$('#text-input'), urlInput=$('#url-input'), extractStatus=$('#ex
 const progressFill=$('#progress-fill'), readerInfo=$('#reader-info'), readerProgress=$('#reader-progress');
 const loadingEl=$('#loading'), loadingText=$('#loading-text'), btnPlay=$('#btn-play'), btnBack=$('#btn-back');
 const splitRsvp=$('#split-rsvp'), splitReader=$('#split-reader'), splitContainer=$('#split-container');
-const splitHandle=$('#split-handle'), rsvpMeta=$('#rsvp-meta');
+const splitHandle=$('#split-handle'), rsvpMeta=$('#rsvp-meta'), paraDot=$('#para-dot');
 
 // ==================== NAVIGATION ====================
 function showView(id) {
@@ -964,6 +1027,7 @@ function displayCurrentWord() {
   if(app.index>=app.words.length){
     wordDisplay.innerHTML=`<div class="finished-msg">Fin<br><span>${app.words.length} palabras</span></div>`;
     rsvpMeta.textContent='';
+    paraDot.classList.remove('show');
     stop();
     if(app.bookId&&app.chapterIdx!==null){markChapterRead(app.bookId,app.chapterIdx);saveProgress();}
     return;
@@ -971,6 +1035,11 @@ function displayCurrentWord() {
   const chunks=currentChunks();
   wordDisplay.innerHTML=renderWord(chunks[Math.min(app.sub,chunks.length-1)]);
   fitCurrentWord();
+  // Frontera de párrafo: el puntito acompaña la última palabra de un párrafo
+  // (su segmento final) y la primera del siguiente.
+  const paraEnd=app.paraEnds&&app.paraEnds.has(app.index)&&app.sub>=chunks.length-1;
+  const paraStart=app.paraEnds&&app.index>0&&app.paraEnds.has(app.index-1)&&app.sub===0;
+  paraDot.classList.toggle('show',!!(paraEnd||paraStart));
   const pct=(app.index/app.words.length*100).toFixed(0);
   progressFill.style.width=pct+'%';
   readerProgress.textContent=`${app.index} / ${app.words.length}`;
