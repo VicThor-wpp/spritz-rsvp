@@ -530,7 +530,8 @@ function chunkWord(w) {
   return parts;
 }
 function renderWord(w) {
-  const i=orpIndex(w);
+  let i=orpIndex(w);
+  while(w[i]===' ') i++; // en unidades agrupadas ("a la") el pivote no cae en el espacio
   return `<span class="word-inner">${esc(w.slice(0,i))}<span class="orp">${esc(w[i]||'')}</span>${esc(w.slice(i+1))}</span>`;
 }
 // Pin the pivot to the reticle (at ORP_ANCHOR from the left) and shrink long
@@ -561,6 +562,7 @@ const app = {
   bookId:null, chapterIdx:null, totalChapters:0,
   splitRatio: 0.4,
   paraEnds:null, ramp:0, hasPlayed:false,
+  group:1, blank:false,
 };
 window.app = app;
 
@@ -569,6 +571,25 @@ window.app = app;
 const RAMP_WORDS=10, RAMP_EXTRA=0.7; // arranca a ~59% de la velocidad, acelera en 10 palabras
 const REWIND_WORDS=4;                // contexto al reanudar tras una pausa
 const PARA_FACTOR=1.8;               // respiro extra sobre la palabra que cierra un párrafo
+const GROUP_WPM=400;                 // desde acá se agrupan palabras cortas ("a la", "en el")
+const BLANK_FACTOR=0.7;              // frame en blanco tras cada oración, en fracción del delay base
+
+// ¿Termina una oración? (con posibles comillas/paréntesis de cierre detrás)
+function sentenceEnd(u){ return /[.!?…]["»”')\]]*$/.test(u); }
+
+// Agrupado de palabras cortas a WPM altos: mostrar "a" solo 70ms es ruido —
+// "a la", "en el" se leen como una sola fijación. Nunca cruza puntuación ni
+// fronteras de párrafo, y el par entra siempre sin trocear (≤9 chars).
+function groupCount(i){
+  if(app.wpm<GROUP_WPM) return 1;
+  const w1=app.words[i], w2=app.words[i+1];
+  if(!w1||!w2) return 1;
+  if([...w1].length>3) return 1;
+  if(/[.,;:!?…—–\-"»”')\]]$/.test(w1)) return 1;
+  if(app.paraEnds&&(app.paraEnds.has(i)||app.paraEnds.has(i+1))) return 1;
+  if([...w1].length+1+[...w2].length>9) return 1;
+  return 2;
+}
 
 // ==================== WAKE LOCK ====================
 // Leer RSVP es mirar sin tocar: sin wake lock la pantalla se apaga a mitad de
@@ -988,7 +1009,10 @@ function updateEreaderHighlight() {
   const newIdx = app.index;
   const oldIdx = _currentSpanIdx;
   if (oldIdx === newIdx) return;
-  if (oldIdx >= 0 && oldIdx < _wordSpans.length) _wordSpans[oldIdx].classList.remove('current');
+  if (oldIdx >= 0 && oldIdx < _wordSpans.length) {
+    _wordSpans[oldIdx].classList.remove('current');
+    if (_wordSpans[oldIdx+1]) _wordSpans[oldIdx+1].classList.remove('current'); // segunda palabra de un par agrupado
+  }
   if (newIdx > oldIdx) {
     for (let i = Math.max(0, oldIdx); i < newIdx && i < _wordSpans.length; i++) {
       _wordSpans[i].classList.add('passed');
@@ -1001,6 +1025,10 @@ function updateEreaderHighlight() {
   if (newIdx >= 0 && newIdx < _wordSpans.length) {
     _wordSpans[newIdx].classList.add('current');
     _wordSpans[newIdx].classList.remove('passed');
+    if (app.group===2 && _wordSpans[newIdx+1]) { // el par agrupado se resalta entero
+      _wordSpans[newIdx+1].classList.add('current');
+      _wordSpans[newIdx+1].classList.remove('passed');
+    }
   }
   _currentSpanIdx = newIdx;
 }
@@ -1023,6 +1051,8 @@ function maybeScrollToCurrent() {
 }
 
 function displayCurrentWord() {
+  app.blank=false;
+  app.group=(app.index<app.words.length)?groupCount(app.index):1;
   updateEreaderHighlight();
   if(app.index>=app.words.length){
     wordDisplay.innerHTML=`<div class="finished-msg">Fin<br><span>${app.words.length} palabras</span></div>`;
@@ -1050,13 +1080,31 @@ function displayCurrentWord() {
   maybeScrollToCurrent();
 }
 
-function currentChunks() { return chunkWord(app.words[app.index]??''); }
+// La "unidad" visible: la palabra actual, o el par agrupado a WPM altos.
+// app.group queda congelado en displayCurrentWord para que el avance de tick
+// consuma exactamente lo que se mostró (aunque el WPM cambie en el medio).
+function currentUnit() {
+  if(app.group===2&&app.index+1<app.words.length) return app.words[app.index]+' '+app.words[app.index+1];
+  return app.words[app.index]??'';
+}
+function currentChunks() { return chunkWord(currentUnit()); }
 
 function tick() {
   if(!app.playing) return;
   const chunks=currentChunks();
+  // Frame en blanco tras cada oración: un respiro visual que segmenta la
+  // memoria de trabajo (práctica Spritz). Solo al terminar la unidad completa.
+  if(!app.blank&&app.sub>=chunks.length-1&&sentenceEnd(currentUnit())&&app.index+(app.group||1)<app.words.length){
+    app.blank=true;
+    wordDisplay.innerHTML='<span class="word-inner">&nbsp;</span>';
+    const blankMs=60000/app.wpm*BLANK_FACTOR;
+    _pend.ms+=blankMs;
+    app.timer=setTimeout(tick, blankMs);
+    return;
+  }
+  app.blank=false;
   if(app.sub<chunks.length-1){ app.sub++; }
-  else { app.sub=0; app.index++; }
+  else { app.sub=0; app.index+=app.group||1; }
   displayCurrentWord();
   if(app.index>=app.words.length) return;
   if(app.sub===0&&app.index%20===0) debouncedSave();
@@ -1073,7 +1121,7 @@ function scheduleNext() {
   let delay=wordDelay(chunks[Math.min(app.sub,chunks.length-1)]||'',base);
   if(app.sub===chunks.length-1&&app.paraEnds&&app.paraEnds.has(app.index)) delay*=PARA_FACTOR;
   if(app.ramp>0){ delay*=1+RAMP_EXTRA*(app.ramp/RAMP_WORDS); app.ramp--; }
-  if(app.sub===0) _pend.words++;
+  if(app.sub===0) _pend.words+=app.group||1;
   _pend.ms+=delay;
   if(_pend.words>=100) flushStats();
   app.timer=setTimeout(tick, delay);

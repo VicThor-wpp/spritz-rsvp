@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.12.0] - 2026-07-13
+
+### Added
+
+- **Blank frame after each sentence** (×0.7 of the base delay): a brief visual
+  gap that segments working memory between sentences — the classic Spritz
+  practice. Composes with the existing ×1.85 sentence-end linger.
+- **Short-word grouping at high speed** (≥400 WPM): function-word pairs like
+  "a la" / "en el" display as a single fixation (≤9 chars combined, never
+  across punctuation or paragraph boundaries). Both words highlight in the
+  text panel; the pivot skips the inner space. Below 400 WPM nothing changes.
+  Like segmentation, grouping is presentation-only: `app.index` and saved
+  progress still count real words.
+
+SW cache bumped to `pivot-v17`.
+
 ## [0.11.0] - 2026-07-13
 
 ### Added
