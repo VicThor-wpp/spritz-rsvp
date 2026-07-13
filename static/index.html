@@ -264,6 +264,27 @@
   }
   @keyframes spin { to { transform:rotate(360deg); } }
 
+  /* Ajustes de lectura: bottom sheet */
+  .sheet-backdrop { position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:150; display:none; }
+  .sheet-backdrop.open { display:block; }
+  .sheet {
+    position:absolute; left:0; right:0; bottom:0; background:var(--surface);
+    border-top:1px solid var(--border); border-radius:16px 16px 0 0;
+    padding:16px 20px calc(20px + env(safe-area-inset-bottom)); max-height:75dvh; overflow-y:auto;
+  }
+  .sheet-title { font-size:12px; color:var(--dim2); text-transform:uppercase; letter-spacing:.08em; margin-bottom:4px; }
+  .set-row {
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    padding:12px 0; border-bottom:1px solid var(--border); cursor:pointer;
+  }
+  .set-row:last-child { border-bottom:none; }
+  .set-label { font-size:14px; }
+  .set-hint { font-size:11px; color:var(--dim2); margin-top:2px; }
+  .set-row input[type=checkbox] { width:22px; height:22px; accent-color:var(--accent); flex:none; cursor:pointer; }
+  .seg { display:flex; gap:4px; flex:none; }
+  .seg button { background:var(--surface2); border:1px solid var(--border); color:var(--dim2); font-size:12px; font-weight:600; padding:6px 10px; border-radius:8px; }
+  .seg button.active { border-color:var(--accent); color:var(--text); }
+
   /* Toast — always-visible feedback overlay (replaces hidden extractStatus errors) */
   .toast {
     position:fixed; left:50%; bottom:24px; transform:translate(-50%, 80px);
@@ -336,6 +357,7 @@
       <button class="fs-btn" id="btn-fs-dec" title="Letra más chica">A&minus;</button>
       <button class="fs-btn" id="btn-fs-inc" title="Letra más grande">A+</button>
       <button class="fs-btn" id="btn-theme" title="Tema del texto">&#9681;</button>
+      <button class="fs-btn" id="btn-settings" title="Ajustes de lectura">&#9881;</button>
     </span>
     <span id="reader-progress"></span>
   </div>
@@ -372,6 +394,41 @@
     <div class="chapter-nav" id="chapter-nav" style="display:none;">
       <button class="secondary sm" id="btn-prev-ch">Cap. anterior</button>
       <button class="secondary sm" id="btn-next-ch">Cap. siguiente</button>
+    </div>
+  </div>
+</div>
+
+<!-- AJUSTES DE LECTURA -->
+<div class="sheet-backdrop" id="settings-backdrop">
+  <div class="sheet">
+    <div class="sheet-title">Ajustes de lectura</div>
+    <label class="set-row">
+      <span><div class="set-label">Rampa de arranque</div><div class="set-hint">Arranca lento y acelera en 10 palabras</div></span>
+      <input type="checkbox" data-set="ramp">
+    </label>
+    <label class="set-row">
+      <span><div class="set-label">Respiro entre oraciones</div><div class="set-hint">Frame en blanco al cerrar cada oración</div></span>
+      <input type="checkbox" data-set="blank">
+    </label>
+    <label class="set-row">
+      <span><div class="set-label">Agrupar palabras cortas</div><div class="set-hint">"a la", "en el" juntas desde 400 WPM</div></span>
+      <input type="checkbox" data-set="group">
+    </label>
+    <label class="set-row">
+      <span><div class="set-label">Puntito de párrafo</div><div class="set-hint">Marca roja al cambiar de párrafo</div></span>
+      <input type="checkbox" data-set="paraDot">
+    </label>
+    <div class="set-row">
+      <span><div class="set-label">Rebobinar al reanudar</div><div class="set-hint">Palabras de contexto tras una pausa</div></span>
+      <div class="seg" id="seg-rewind">
+        <button data-v="0">0</button><button data-v="2">2</button><button data-v="4">4</button><button data-v="8">8</button>
+      </div>
+    </div>
+    <div class="set-row">
+      <span><div class="set-label">Pausa de párrafo</div></span>
+      <div class="seg" id="seg-para">
+        <button data-v="1">Sin</button><button data-v="1.8">Normal</button><button data-v="2.6">Larga</button>
+      </div>
     </div>
   </div>
 </div>
@@ -569,10 +626,24 @@ window.app = app;
 // Ritmo de reproducción: el costo cognitivo del RSVP está en las transiciones,
 // no en la velocidad sostenida — por eso rampa de arranque y rebobinado al reanudar.
 const RAMP_WORDS=10, RAMP_EXTRA=0.7; // arranca a ~59% de la velocidad, acelera en 10 palabras
-const REWIND_WORDS=4;                // contexto al reanudar tras una pausa
-const PARA_FACTOR=1.8;               // respiro extra sobre la palabra que cierra un párrafo
 const GROUP_WPM=400;                 // desde acá se agrupan palabras cortas ("a la", "en el")
 const BLANK_FACTOR=0.7;              // frame en blanco tras cada oración, en fracción del delay base
+
+// ==================== READING SETTINGS ====================
+// Comportamientos del flujo con "gusto personal", configurables desde el
+// sheet ⚙ del lector. Se leen en el momento de uso: aplican al instante.
+const SETTINGS_DEFAULTS={
+  ramp:true,      // rampa de arranque
+  blank:true,     // frame en blanco entre oraciones
+  group:true,     // agrupar palabras cortas a ≥GROUP_WPM
+  paraDot:true,   // puntito de frontera de párrafo
+  rewind:4,       // palabras de contexto al reanudar (0 = sin rebobinado)
+  paraPause:1.8,  // multiplicador de pausa al cerrar un párrafo (1 = sin pausa)
+};
+let settings={...SETTINGS_DEFAULTS};
+try { settings={...SETTINGS_DEFAULTS,...JSON.parse(localStorage.getItem('spritz-settings')||'{}')}; }
+catch(err){ console.warn('[spritz] corrupt settings:', err); }
+function saveSettings(){ try{ localStorage.setItem('spritz-settings',JSON.stringify(settings)); }catch(err){ /* quota — no crítico */ } }
 
 // ¿Termina una oración? (con posibles comillas/paréntesis de cierre detrás)
 function sentenceEnd(u){ return /[.!?…]["»”')\]]*$/.test(u); }
@@ -581,7 +652,7 @@ function sentenceEnd(u){ return /[.!?…]["»”')\]]*$/.test(u); }
 // "a la", "en el" se leen como una sola fijación. Nunca cruza puntuación ni
 // fronteras de párrafo, y el par entra siempre sin trocear (≤9 chars).
 function groupCount(i){
-  if(app.wpm<GROUP_WPM) return 1;
+  if(!settings.group||app.wpm<GROUP_WPM) return 1;
   const w1=app.words[i], w2=app.words[i+1];
   if(!w1||!w2) return 1;
   if([...w1].length>3) return 1;
@@ -1069,7 +1140,7 @@ function displayCurrentWord() {
   // (su segmento final) y la primera del siguiente.
   const paraEnd=app.paraEnds&&app.paraEnds.has(app.index)&&app.sub>=chunks.length-1;
   const paraStart=app.paraEnds&&app.index>0&&app.paraEnds.has(app.index-1)&&app.sub===0;
-  paraDot.classList.toggle('show',!!(paraEnd||paraStart));
+  paraDot.classList.toggle('show',!!(settings.paraDot&&(paraEnd||paraStart)));
   const pct=(app.index/app.words.length*100).toFixed(0);
   progressFill.style.width=pct+'%';
   readerProgress.textContent=`${app.index} / ${app.words.length}`;
@@ -1094,7 +1165,7 @@ function tick() {
   const chunks=currentChunks();
   // Frame en blanco tras cada oración: un respiro visual que segmenta la
   // memoria de trabajo (práctica Spritz). Solo al terminar la unidad completa.
-  if(!app.blank&&app.sub>=chunks.length-1&&sentenceEnd(currentUnit())&&app.index+(app.group||1)<app.words.length){
+  if(settings.blank&&!app.blank&&app.sub>=chunks.length-1&&sentenceEnd(currentUnit())&&app.index+(app.group||1)<app.words.length){
     app.blank=true;
     wordDisplay.innerHTML='<span class="word-inner">&nbsp;</span>';
     const blankMs=60000/app.wpm*BLANK_FACTOR;
@@ -1119,7 +1190,7 @@ function scheduleNext() {
   const base=60000/app.wpm;
   const chunks=currentChunks();
   let delay=wordDelay(chunks[Math.min(app.sub,chunks.length-1)]||'',base);
-  if(app.sub===chunks.length-1&&app.paraEnds&&app.paraEnds.has(app.index)) delay*=PARA_FACTOR;
+  if(app.sub===chunks.length-1&&app.paraEnds&&app.paraEnds.has(app.index)) delay*=settings.paraPause;
   if(app.ramp>0){ delay*=1+RAMP_EXTRA*(app.ramp/RAMP_WORDS); app.ramp--; }
   if(app.sub===0) _pend.words+=app.group||1;
   _pend.ms+=delay;
@@ -1130,7 +1201,7 @@ function scheduleNext() {
 function play(rampWords=RAMP_WORDS) {
   if(app.index>=app.words.length) return;
   app.hasPlayed=true;
-  app.ramp=rampWords;
+  app.ramp=settings.ramp?rampWords:0;
   app.playing=true; btnPlay.innerHTML='&#9646;&#9646;';
   acquireWakeLock();
   displayCurrentWord();
@@ -1146,8 +1217,8 @@ function stop() {
 // Reanudar tras una pausa retrocede unas palabras para recuperar el hilo sin
 // el skip(-10) manual. Solo aplica a resume (no al arranque ni a los saltos).
 function resumeWithContext() {
-  if(app.hasPlayed&&app.index>0&&app.index<app.words.length){
-    app.index=Math.max(0,app.index-REWIND_WORDS); app.sub=0;
+  if(settings.rewind>0&&app.hasPlayed&&app.index>0&&app.index<app.words.length){
+    app.index=Math.max(0,app.index-settings.rewind); app.sub=0;
   }
   play();
 }
@@ -1271,11 +1342,38 @@ $('#btn-theme').addEventListener('click',()=>{
   setReaderTheme(next);
   showToast('Tema: '+READER_THEME_LABELS[next],'info',900);
 });
+
+// Sheet de ajustes de lectura: los cambios pegan directo en `settings`
+// (el motor lo lee en el momento de uso) y persisten al instante.
+const settingsBackdrop=$('#settings-backdrop');
+function syncSettingsUI(){
+  settingsBackdrop.querySelectorAll('input[data-set]').forEach(cb=>{ cb.checked=!!settings[cb.dataset.set]; });
+  $('#seg-rewind').querySelectorAll('button').forEach(b=>b.classList.toggle('active',parseFloat(b.dataset.v)===settings.rewind));
+  $('#seg-para').querySelectorAll('button').forEach(b=>b.classList.toggle('active',parseFloat(b.dataset.v)===settings.paraPause));
+}
+$('#btn-settings').addEventListener('click',()=>{ syncSettingsUI(); settingsBackdrop.classList.add('open'); });
+settingsBackdrop.addEventListener('click',e=>{ if(e.target===settingsBackdrop) settingsBackdrop.classList.remove('open'); });
+settingsBackdrop.querySelectorAll('input[data-set]').forEach(cb=>{
+  cb.addEventListener('change',()=>{
+    settings[cb.dataset.set]=cb.checked; saveSettings();
+    if(cb.dataset.set==='paraDot'&&!cb.checked) paraDot.classList.remove('show');
+  });
+});
+$('#seg-rewind').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
+  settings.rewind=parseFloat(b.dataset.v); saveSettings(); syncSettingsUI();
+}));
+$('#seg-para').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
+  settings.paraPause=parseFloat(b.dataset.v); saveSettings(); syncSettingsUI();
+}));
 $('#btn-prev-ch').addEventListener('click',()=>{if(!app.bookId||app.chapterIdx<=0)return;stop();loadChapter(app.bookId,app.chapterIdx-1);});
 $('#btn-next-ch').addEventListener('click',()=>{if(!app.bookId||app.chapterIdx>=app.totalChapters-1)return;stop();loadChapter(app.bookId,app.chapterIdx+1);});
 
 // Keyboard
 document.addEventListener('keydown',e=>{
+  if(settingsBackdrop.classList.contains('open')){
+    if(e.code==='Escape'){e.preventDefault();settingsBackdrop.classList.remove('open');}
+    return; // con el sheet abierto, el teclado no controla el lector
+  }
   if(!$('#view-reader').classList.contains('active'))return;
   if(e.code==='Space'){e.preventDefault();togglePlay();}
   if(e.code==='ArrowLeft')skip(-10);

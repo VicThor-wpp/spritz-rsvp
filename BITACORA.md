@@ -2,6 +2,10 @@
 
 ## 2026-07-13
 
+### 31. Los comportamientos del flujo pasan a ser configurables
+
+Victor señaló que las prácticas RSVP acumuladas no deberían ser constantes hardcodeadas sino configuración manejable — tiene razón: rampa, rebobinado, pausa de párrafo, frame en blanco, agrupado y puntito son todos de gusto personal. Nuevo objeto `settings` (defaults = comportamiento actual, merge sobre `localStorage['spritz-settings']`) y un bottom sheet ⚙ en la barra del lector: cuatro toggles (rampa, respiro entre oraciones, agrupado, puntito) y dos segmentados (rebobinado 0/2/4/8, pausa de párrafo sin/normal/larga). Decisión de diseño: el motor lee `settings` **en el momento de uso** (no hay "aplicar" ni snapshot), así que tocar un toggle con la lectura corriendo pega en la palabra siguiente. Con el sheet abierto el teclado del lector queda suspendido (Espacio no pausa, Escape cierra el sheet). Harness a 53 checks. SW a `pivot-v18`.
+
 ### 30. Las dos prácticas pendientes: frame en blanco y agrupado de cortas
 
 Victor pidió cerrar los dos pendientes anotados en la entrada 29. (1) **Frame en blanco tras cada oración**: un tick vacío (×0.7 del delay base) entre el linger del punto (×1.85) y la palabra siguiente — el gap visual que Spritz usa para segmentar la memoria de trabajo entre oraciones. (2) **Agrupado de palabras cortas a ≥400 WPM**: pares funcionales tipo "a la" / "en el" (primera ≤3 chars, par ≤9, nunca cruzando puntuación ni fronteras de párrafo) se muestran como una sola fijación; a 350 WPM no cambia nada. Lo interesante de diseño: el agrupado es la **inversa del troceo silábico**, y usa el mismo principio — es presentación pura. `app.group` se congela en `displayCurrentWord` y `tick` avanza exactamente lo que se mostró (robusto a cambios de WPM mid-flight), `app.index` sigue contando palabras reales, el panel de abajo resalta el par entero, y el pivote salta el espacio interior ("a la" pivota en la "l"). Harness a 47 checks, verdes local y live. SW a `pivot-v17`.

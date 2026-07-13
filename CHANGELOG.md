@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.13.0] - 2026-07-13
+
+### Added
+
+- **Reading settings sheet** (⚙ in the reader top bar): every taste-dependent
+  flow behavior is now user-configurable — start ramp, blank frame between
+  sentences, short-word grouping, paragraph dot (toggles), resume rewind
+  (0/2/4/8 words) and paragraph pause (off/normal/long). Settings are read at
+  the moment of use, so changes apply instantly mid-reading; persisted in
+  `localStorage` (`spritz-settings`) merged over defaults. Backdrop tap or
+  Escape closes; keyboard shortcuts are suspended while the sheet is open.
+
+SW cache bumped to `pivot-v18`.
+
 ## [0.12.0] - 2026-07-13
 
 ### Added
