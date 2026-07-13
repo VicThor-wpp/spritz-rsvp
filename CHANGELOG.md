@@ -17,6 +17,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **Long words now fit the RSVP panel (auto-fit)**: each word is measured and,
+  when it is wider than the panel, scaled down with a single `translateX()+
+  scale()` on `.word-inner` so the whole word is visible while the pivot stays
+  on the reticle. The longer side of the pivot dictates the scale (each side
+  gets half the panel); a 0.4 floor keeps pathological words from vanishing.
+  Re-fits on resize/orientation change. On a 390px phone real words land at
+  0.75–1.0 scale (barely shrunk). SW cache bumped to `pivot-v13`. Replaces the
+  flex 3-cell centering, which pinned the pivot but let long words overflow.
 - **ORP alignment**: the pivot (red) letter is now pinned dead-center on the
   reticle instead of the whole word being block-centered — so it stayed put
   only when prefix and suffix happened to be equal length (e.g. "ConceptSMILE,"

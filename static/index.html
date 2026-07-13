@@ -146,13 +146,13 @@
   }
   .word-display {
     font-size:clamp(32px,9vw,68px); font-weight:700; letter-spacing:2px;
-    white-space:nowrap; display:flex; width:100%; justify-content:center;
+    white-space:nowrap; width:100%; text-align:left;
   }
-  /* ORP alignment: the two side cells grow equally, so the pivot glyph is
-     pinned dead-center on the reticle regardless of prefix/suffix length. */
-  .word-display .wd-pre  { flex:1 1 0; min-width:0; text-align:right; }
-  .word-display .orp     { flex:0 0 auto; color:var(--accent); }
-  .word-display .wd-post { flex:1 1 0; min-width:0; text-align:left; }
+  /* ORP alignment + auto-fit: JS applies a single translateX()+scale() to
+     .word-inner so the pivot glyph lands on the centred reticle AND the whole
+     word shrinks to fit the panel when it is wider than the screen. */
+  .word-display .word-inner { display:inline-block; transform-origin:left center; will-change:transform; }
+  .word-display .orp { color:var(--accent); }
   .rsvp-meta {
     font-size:11px; color:var(--dim); margin-top:6px; text-align:center;
     padding:0 16px;
@@ -419,7 +419,26 @@ function wordDelay(w, base) {
 function tokenize(t) { return t.split(/\s+/).filter(w=>w.length>0); }
 function renderWord(w) {
   const i=orpIndex(w);
-  return `<span class="wd-pre">${esc(w.slice(0,i))}</span><span class="orp">${esc(w[i]||'')}</span><span class="wd-post">${esc(w.slice(i+1))}</span>`;
+  return `<span class="word-inner">${esc(w.slice(0,i))}<span class="orp">${esc(w[i]||'')}</span>${esc(w.slice(i+1))}</span>`;
+}
+// Center the pivot on the reticle and shrink long words to fit the panel.
+// The pivot sits near the word start, so the longer side (usually the right)
+// dictates the scale; each side gets half the panel width from the centre.
+function fitCurrentWord() {
+  const inner = wordDisplay.querySelector('.word-inner');
+  if (!inner) return;
+  const orp = inner.querySelector('.orp');
+  if (!orp) { inner.style.transform = ''; return; }
+  inner.style.transform = 'none';                     // reset before measuring
+  const W = wordDisplay.clientWidth;
+  const half = W / 2 - 8;                              // room each side of the reticle
+  const natural = inner.offsetWidth;
+  const pivotX = orp.offsetLeft + orp.offsetWidth / 2; // pivot centre within the word
+  const maxExt = Math.max(pivotX, natural - pivotX);   // longest side dictates the fit
+  let scale = maxExt > half ? half / maxExt : 1;
+  if (scale < 0.4) scale = 0.4;                         // floor: pathological words clip, not vanish
+  const tx = W / 2 - pivotX * scale;
+  inner.style.transform = `translateX(${tx}px) scale(${scale})`;
 }
 
 // ==================== STATE ====================
@@ -856,6 +875,7 @@ function displayCurrentWord() {
     return;
   }
   wordDisplay.innerHTML=renderWord(app.words[app.index]);
+  fitCurrentWord();
   const pct=(app.index/app.words.length*100).toFixed(0);
   progressFill.style.width=pct+'%';
   readerProgress.textContent=`${app.index} / ${app.words.length}`;
@@ -1019,7 +1039,7 @@ document.addEventListener('visibilitychange',()=>{
 });
 
 // Resize
-window.addEventListener('resize',()=>{if($('#view-reader').classList.contains('active'))applySplit();});
+window.addEventListener('resize',()=>{if($('#view-reader').classList.contains('active')){applySplit();fitCurrentWord();}});
 
 (function handleShareParams(){
   const params = new URLSearchParams(location.search);
