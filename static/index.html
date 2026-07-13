@@ -139,8 +139,10 @@
     position:relative; overflow:hidden; flex-shrink:0;
     background: var(--bg);
   }
+  /* Reticle at 35% from the left (the ORP's natural position in a word), so
+     words read balanced instead of right-loaded. Keep in sync with ORP_ANCHOR. */
   .orp-line {
-    position:absolute; left:50%; top:15%; bottom:15%;
+    position:absolute; left:35%; top:15%; bottom:15%;
     width:2px; background:var(--accent); opacity:.2; pointer-events:none;
     transform:translateX(-50%);
   }
@@ -421,23 +423,25 @@ function renderWord(w) {
   const i=orpIndex(w);
   return `<span class="word-inner">${esc(w.slice(0,i))}<span class="orp">${esc(w[i]||'')}</span>${esc(w.slice(i+1))}</span>`;
 }
-// Center the pivot on the reticle and shrink long words to fit the panel.
-// The pivot sits near the word start, so the longer side (usually the right)
-// dictates the scale; each side gets half the panel width from the centre.
+// Pin the pivot to the reticle (at ORP_ANCHOR from the left) and shrink long
+// words to fit. Each side of the reticle has its own room, so the tighter side
+// caps the scale. Keep ORP_ANCHOR in sync with `.orp-line { left }`.
+const ORP_ANCHOR = 0.35;
 function fitCurrentWord() {
   const inner = wordDisplay.querySelector('.word-inner');
   if (!inner) return;
   const orp = inner.querySelector('.orp');
   if (!orp) { inner.style.transform = ''; return; }
-  inner.style.transform = 'none';                     // reset before measuring
+  inner.style.transform = 'none';                      // reset before measuring
   const W = wordDisplay.clientWidth;
-  const half = W / 2 - 8;                              // room each side of the reticle
+  const R = W * ORP_ANCHOR;                            // reticle x
   const natural = inner.offsetWidth;
   const pivotX = orp.offsetLeft + orp.offsetWidth / 2; // pivot centre within the word
-  const maxExt = Math.max(pivotX, natural - pivotX);   // longest side dictates the fit
-  let scale = maxExt > half ? half / maxExt : 1;
+  const scaleL = (R - 8) / pivotX;                     // room left of the reticle
+  const scaleR = (W - R - 8) / (natural - pivotX);     // room right of the reticle
+  let scale = Math.min(scaleL, scaleR, 1);
   if (scale < 0.4) scale = 0.4;                         // floor: pathological words clip, not vanish
-  const tx = W / 2 - pivotX * scale;
+  const tx = R - pivotX * scale;
   inner.style.transform = `translateX(${tx}px) scale(${scale})`;
 }
 
