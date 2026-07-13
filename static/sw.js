@@ -1,4 +1,4 @@
-const CACHE = "pivot-v11";
+const CACHE = "pivot-v12";
 
 // --- IndexedDB (shared with the page: same origin, same database) ---------
 const DB_NAME = "pivot";
@@ -54,6 +54,27 @@ self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
   if (url.pathname.startsWith("/api/")) return;
 
+  // Network-first for navigations (the HTML shell): a deploy lands on the next
+  // load instead of "one reload behind". The whole app is inlined in the HTML,
+  // so this is the only document that changes between releases. Falls back to
+  // the cached copy when offline.
+  if (e.request.mode === "navigate") {
+    e.respondWith(
+      fetch(e.request)
+        .then((resp) => {
+          const copy = resp.clone();
+          caches.open(CACHE).then((c) => c.put("/", copy)); // refresh offline fallback
+          return resp;
+        })
+        .catch(() =>
+          caches.match(e.request).then((cached) => cached || caches.match("/"))
+        )
+    );
+    return;
+  }
+
+  // Cache-first for static assets (icons, manifest): fast, and refreshed on the
+  // next install via the CACHE version bump.
   e.respondWith(
     caches.match(e.request).then((cached) => {
       if (cached) return cached;

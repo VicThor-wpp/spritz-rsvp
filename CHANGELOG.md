@@ -27,6 +27,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **Service worker is now network-first for navigations** (`pivot-v12`): the
+  HTML shell is fetched from the network on every online load, with the cached
+  copy as an offline fallback, so a deploy is visible on the next load instead
+  of "one reload behind" a stale cache. Static assets (icons, manifest) stay
+  cache-first. This fixes installed clients showing an old build after a deploy.
 - **Production domain is now `rsvp.yr.com.uy`** (live 2026-07-13). Added the
   nginx vhost `deploy/nginx-rsvp.conf` and issued a Let's Encrypt cert; the app
   container (`spritz-app` on `:8035`) was already running. Updated `DEPLOY.md`;
