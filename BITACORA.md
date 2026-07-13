@@ -1,5 +1,27 @@
 # Bitácora de desarrollo
 
+## 2026-07-13
+
+### 23. El subdominio pasa a rsvp.yr.com.uy
+
+Victor cambió el DNS del proyecto a `rsvp` pero el sitio no cargaba. Diagnóstico: el DNS ya apuntaba bien al VPS (`64.23.146.116`), pero faltaba la mitad del server. Como **ningún `server_name` de nginx matcheaba `rsvp`**, el request caía al primer server block cargado (`ai-flow`, el vecino del VPS compartido) — que servía la app equivocada ("Epson Image Platform") **con un cert expirado** (`CN=ai-flow.yr.com.uy`, vencido el 21-jun). El container `spritz-app` estaba healthy sirviendo Pivot en `:8035`; sólo faltaba wirearlo. Creé el vhost `rsvp` (proxy a `:8035`, desde `deploy/nginx-rsvp.conf`), emití cert Let's Encrypt con certbot (agrega el redirect 80→443) y recargué nginx. Verifiqué de afuera: HTTP 200, cert válido, sirviendo Pivot. Actualicé DEPLOY.md, renombré `nginx-pivot.conf`→`nginx-rsvp.conf` y apunté el manifest del TWA al dominio nuevo. Insight: **DNS ≠ online** — apuntar el A record sólo lleva el tráfico al server; el server todavía tiene que reconocer el hostname con un vhost y tener un cert válido para él.
+
+### 24. La pivote no caía en la guía: de centrar-bloque a flex de 3 celdas
+
+Victor notó que la letra roja del ORP no quedaba sobre la línea guía — la palabra estaba "corrida" y el ojo tenía que moverse. Causa: `renderWord` armaba `prefijo + <span.orp> + sufijo` y el `.word-display` los **centraba como bloque** (`text-align:center`), así que la pivote sólo caía sobre la retícula cuando prefijo y sufijo medían igual. En "ConceptSMILE," (ORP en la "e", índice 4 de 13) el centro del bloque caía entre la "t" y la "S", dejando la roja a la izquierda. Primer fix: layout **flex de 3 celdas** (`.wd-pre` / `.orp` / `.wd-post`) donde las laterales crecen igual (`flex:1 1 0`), empujando la pivote al centro exacto sin JS por palabra. Verifiqué con un harness headless en Chrome: Δ=0.00px en todos los largos. Bumpeé el SW a `pivot-v11` porque el HTML se cachea cache-first.
+
+### 25. Chau APK nativo (TWA): la PWA es el único cliente
+
+Con la web andando bien, Victor pidió sacar todo lo del APK nativo para limpiar el repo. Distinguí lo del **TWA** (a remover) de lo del **PWA** (se queda: `manifest.json` con `share_target`, el handler `/share-target` del SW). Removí de git `static/pivot.apk`, `static/.well-known/assetlinks.json`, `twa/twa-manifest.json` y `twa/.gitignore`; la ruta `/pivot.apk` de `main.py`; y las secciones de TWA en DEPLOY.md y README. El `twa/` local completo (proyecto Bubblewrap + **keystore**) lo borré con autorización explícita de Victor — corte definitivo (un APK futuro sería con firma nueva). `assetlinks.json` sólo servía para verificar el TWA, así que quedó muerto. Dejé intactas las entradas históricas de CHANGELOG/BITACORA y `ADR-001: PWA over native app` — que ahora quedó más vigente que nunca. Verifiqué en prod: `/pivot.apk` y `assetlinks.json` dan 404, el PWA intacto.
+
+### 26. Service worker network-first: los deploys dejan de quedar "un reload atrás"
+
+El celu de Victor seguía mostrando una versión vieja de la app después de un deploy. Manejando el sitio live con Playwright a 390px confirmé que **el código desplegado estaba correcto** (Δ=0 midiendo la pivote) — lo que veía era el `index.html` viejo cacheado. El SW era cache-first para el HTML: servía la copia cacheada al instante y recién en segundo plano detectaba el SW nuevo, así que la vista quedaba vieja hasta recargar de nuevo (el clásico "un reload atrás"), y a veces se trababa. Cambié las **navegaciones a network-first** (online = HTML fresco al instante; offline = fallback al cache); los assets siguen cache-first (rápidos, estables). Como toda la app está inline en `index.html`, el documento es lo único que cambia entre releases, así que con eso alcanza. Insight: bumpear `CACHE` en cada deploy era el síntoma; network-first es la cura.
+
+### 27. Palabras largas que no entraban: auto-fit y retícula al 35%
+
+En el celu, "dificultosamente," (más ancha que la pantalla) se cortaba a la derecha aunque la pivote estuviera centrada. El flex del punto 24 se rompía al desbordar: sin espacio libre positivo, `flex-grow` no balancea y `justify-content:center` recentra el bloque. Reescribí a **medición unificada**: un `.word-inner` inline-block con un solo `transform: translateX()+scale()` que clava la pivote en la retícula Y achica para caber (piso 0.4, sin reflow por palabra). Después Victor observó algo más fino y correcto: con la retícula al centro (50%), como el ORP cae a ~30% de la palabra, las largas quedaban cargadas a la derecha — "eso no tiene sentido". Le expliqué que la roja está a ~30% a propósito (es el Optimal Recognition Point, no el centro), y que la cura canónica de Spritz es mover la **retícula al ~35%** para que coincida con dónde cae el ORP. Le mostré un comparativo visual (30/35/40/50) y eligió 35%. `fitCurrentWord()` ahora ancla en `ORP_ANCHOR=0.35` con espacio asimétrico (izq 35% / der 65%), el lado más apretado capea la escala. Verifiqué el sitio live a 390px: la pivote en el 35% en todas las palabras, todo entra, las largas a tamaño casi completo. Detalle que engañó una medición temprana: el `clamp(32px,9vw,68px)` depende del **viewport**, no del panel — en un harness con viewport ancho la fuente daba 68px y exageraba el achique.
+
 ## 2026-07-06
 
 ### 14. El share target no aparecía en Android — diagnóstico WebAPK
