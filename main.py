@@ -323,20 +323,6 @@ async def share_target_fallback():
     return RedirectResponse(url="/", status_code=303)
 
 
-# --- APK download ---------------------------------------------------------
-# Explicit media type: some Android installers reject APKs opened straight
-# from the browser when they were served as application/octet-stream.
-
-
-@app.get("/pivot.apk", include_in_schema=False)
-async def pivot_apk():
-    return FileResponse(
-        str(STATIC / "pivot.apk"),
-        media_type="application/vnd.android.package-archive",
-        filename="pivot.apk",
-    )
-
-
 # --- Manifest -----------------------------------------------------------
 # Chrome Android requires application/manifest+json to mint a WebAPK
 # (and therefore to register the share target). Plain application/json

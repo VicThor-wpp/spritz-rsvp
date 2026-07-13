@@ -28,7 +28,6 @@ spritz-rsvp/
 │   ├── index.html          # Frontend PWA (biblioteca en IndexedDB)
 │   ├── manifest.json       # Manifiesto PWA
 │   └── sw.js               # Service Worker
-├── twa/                    # Proyecto Bubblewrap del APK nativo
 └── requirements.txt        # Dependencias Python
 ```
 

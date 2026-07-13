@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Removed
+
+- **Native Android APK (Trusted Web Activity)** and its whole toolchain — the
+  web app / PWA is the only client now. Dropped `static/pivot.apk` and its
+  `/pivot.apk` route, the `twa/` Bubblewrap project (including the signing
+  keystore), and `static/.well-known/assetlinks.json` (Digital Asset Links,
+  needed only to verify the TWA). PWA install and the share target are
+  unaffected. Reverts to the original ADR-001 stance (PWA over native).
+
 ### Fixed
 
 - **ORP alignment**: the pivot (red) letter is now pinned dead-center on the
@@ -20,9 +29,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **Production domain is now `rsvp.yr.com.uy`** (live 2026-07-13). Added the
   nginx vhost `deploy/nginx-rsvp.conf` and issued a Let's Encrypt cert; the app
-  container (`spritz-app` on `:8035`) was already running. Updated `DEPLOY.md`
-  and pointed the TWA manifest (`twa/twa-manifest.json`, `appVersionCode` 2→3)
-  at the new domain — the APK needs a rebuild + reinstall to actually follow it.
+  container (`spritz-app` on `:8035`) was already running. Updated `DEPLOY.md`;
   `deploy/nginx-pivot.conf` renamed to `deploy/nginx-rsvp.conf`.
 
 ## [0.8.1] - 2026-07-06
