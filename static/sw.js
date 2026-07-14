@@ -1,4 +1,4 @@
-const CACHE = "pivot-v18";
+const CACHE = "pivot-v21";
 
 // --- IndexedDB (shared with the page: same origin, same database) ---------
 const DB_NAME = "pivot";

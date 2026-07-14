@@ -153,15 +153,20 @@
     width:2px; background:var(--accent); opacity:.2; pointer-events:none;
     transform:translateX(-50%);
   }
-  /* Puntito bajo la retícula que marca la frontera de párrafo (última palabra
-     de uno y primera del siguiente) — en la periferia del punto de fijación,
-     visible sin mover el ojo. */
-  .para-dot {
-    position:absolute; left:35%; bottom:10%; width:8px; height:8px;
-    border-radius:50%; background:var(--accent); opacity:0;
-    transform:translateX(-50%); transition:opacity .15s; pointer-events:none;
-  }
-  .para-dot.show { opacity:.85; }
+   /* Dinkus (• • •) bajo la retícula que marca la frontera de párrafo (última
+      palabra de uno y primera del siguiente). Tres puntos horizontales — el
+      símbolo tipográfico de corte de sección — en la periferia de la fijación:
+      se percibe sin mover el ojo, y al ser horizontal no se confunde con la
+      línea vertical de la retícula (un punto solo, pegado a su extremo inferior,
+      parecía "gotear" de la línea y era casi imperceptible). Los dos puntos
+      laterales salen por box-shadow, así el .show/opacity los tiñe a todos. */
+   .para-dot {
+     position:absolute; left:35%; bottom:15%; width:7px; height:7px;
+     border-radius:50%; background:var(--accent); opacity:0;
+     transform:translateX(-50%); transition:opacity .18s; pointer-events:none;
+     box-shadow:-16px 0 0 var(--accent), 16px 0 0 var(--accent);
+   }
+   .para-dot.show { opacity:.9; }
   .word-display {
     font-size:clamp(32px,9vw,68px); font-weight:700; letter-spacing:2px;
     white-space:nowrap; width:100%; text-align:left;
@@ -195,20 +200,28 @@
     font-size:17px; line-height:1.75; color:#bbb;
     user-select:text;
   }
-  .split-reader p { margin-bottom:.8em; }
-  /* Per-word state: default = upcoming (light), .passed = already read (dim), .current = highlighted */
-  .split-reader .w { color:#c8c8c8; cursor:pointer; contain:layout style; }
-  .split-reader .w.passed { color:#555; }
-  .split-reader .w.current { color:var(--accent); font-weight:600; }
-  /* Temas del panel de texto: el RSVP de arriba queda siempre oscuro */
-  .split-reader.sepia { background:#f2e8d5; color:#59462f; }
-  .split-reader.sepia .w { color:#59462f; }
-  .split-reader.sepia .w.passed { color:#b9ab8c; }
-  .split-reader.sepia .w.current { color:#c0392b; }
-  .split-reader.light { background:#fafafa; color:#2b2b2b; }
-  .split-reader.light .w { color:#2b2b2b; }
-  .split-reader.light .w.passed { color:#b8b8b8; }
-  .split-reader.light .w.current { color:#c0392b; }
+   .split-reader p { margin-bottom:.8em; }
+   /* Marca de diálogo: acento sutil a la izquierda del parlamento (— …). */
+   .split-reader.dlg-on p.dlg { border-left:2px solid rgba(231,76,60,.35); padding-left:10px; }
+   /* Per-word state: default = upcoming (light), .passed = already read (dim),
+      .sentence = oración actual (brillante, "you are here" — reconstruye el mapa
+      espacial al bajar la vista), .current = palabra actual. El orden importa:
+      .sentence pisa a .passed, y .current pisa a .sentence. */
+   .split-reader .w { color:#c8c8c8; cursor:pointer; contain:layout style; }
+   .split-reader .w.passed { color:#555; }
+   .split-reader .w.sentence { color:#f4f4f4; }
+   .split-reader .w.current { color:var(--accent); font-weight:600; }
+   /* Temas del panel de texto: el RSVP de arriba queda siempre oscuro */
+   .split-reader.sepia { background:#f2e8d5; color:#59462f; }
+   .split-reader.sepia .w { color:#59462f; }
+   .split-reader.sepia .w.passed { color:#b9ab8c; }
+   .split-reader.sepia .w.sentence { color:#2f2109; }
+   .split-reader.sepia .w.current { color:#c0392b; }
+   .split-reader.light { background:#fafafa; color:#2b2b2b; }
+   .split-reader.light .w { color:#2b2b2b; }
+   .split-reader.light .w.passed { color:#b8b8b8; }
+   .split-reader.light .w.sentence { color:#000; }
+   .split-reader.light .w.current { color:#c0392b; }
 
   /* Controls bar */
   .reader-controls {
@@ -281,7 +294,7 @@
   .set-label { font-size:14px; }
   .set-hint { font-size:11px; color:var(--dim2); margin-top:2px; }
   .set-row input[type=checkbox] { width:22px; height:22px; accent-color:var(--accent); flex:none; cursor:pointer; }
-  .seg { display:flex; gap:4px; flex:none; }
+  .seg { display:flex; gap:4px; flex:none; flex-wrap:wrap; justify-content:flex-end; }
   .seg button { background:var(--surface2); border:1px solid var(--border); color:var(--dim2); font-size:12px; font-weight:600; padding:6px 10px; border-radius:8px; }
   .seg button.active { border-color:var(--accent); color:var(--text); }
 
@@ -411,23 +424,49 @@
       <input type="checkbox" data-set="blank">
     </label>
     <label class="set-row">
-      <span><div class="set-label">Agrupar palabras cortas</div><div class="set-hint">"a la", "en el" juntas desde 400 WPM</div></span>
+      <span><div class="set-label">Agrupar en frases</div><div class="set-hint">"a la", "en el bosque" en una fijación desde 400 WPM</div></span>
       <input type="checkbox" data-set="group">
     </label>
     <label class="set-row">
-      <span><div class="set-label">Puntito de párrafo</div><div class="set-hint">Marca roja al cambiar de párrafo</div></span>
+      <span><div class="set-label">Modo comprensión</div><div class="set-hint">Más tiempo de digestión en cada pausa (puntuación y párrafos)</div></span>
+      <input type="checkbox" data-set="compMode">
+    </label>
+    <label class="set-row">
+      <span><div class="set-label">Timing por sílabas</div><div class="set-hint">Ritmo por sílabas en vez de por letras (experimental)</div></span>
+      <input type="checkbox" data-set="syllable">
+    </label>
+    <label class="set-row">
+      <span><div class="set-label">Marca de párrafo</div><div class="set-hint">Tres puntos (• • •) al cambiar de párrafo</div></span>
       <input type="checkbox" data-set="paraDot">
     </label>
+    <label class="set-row">
+      <span><div class="set-label">Resaltar oración</div><div class="set-hint">Ilumina la oración actual en el texto de abajo</div></span>
+      <input type="checkbox" data-set="sentence">
+    </label>
+    <label class="set-row">
+      <span><div class="set-label">Marca de diálogo</div><div class="set-hint">Acento en los parlamentos (—) del panel de texto</div></span>
+      <input type="checkbox" data-set="dialogue">
+    </label>
+    <label class="set-row">
+      <span><div class="set-label">Navegar por oración</div><div class="set-hint">← / → y los toques laterales saltan por oración (no ±10 palabras)</div></span>
+      <input type="checkbox" data-set="navSentence">
+    </label>
     <div class="set-row">
-      <span><div class="set-label">Rebobinar al reanudar</div><div class="set-hint">Palabras de contexto tras una pausa</div></span>
+      <span><div class="set-label">Rebobinar al reanudar</div><div class="set-hint">Contexto tras una pausa (Oración = vuelve al inicio de la oración)</div></span>
       <div class="seg" id="seg-rewind">
-        <button data-v="0">0</button><button data-v="2">2</button><button data-v="4">4</button><button data-v="8">8</button>
+        <button data-v="0">0</button><button data-v="2">2</button><button data-v="4">4</button><button data-v="8">8</button><button data-v="-1">Oración</button>
       </div>
     </div>
     <div class="set-row">
       <span><div class="set-label">Pausa de párrafo</div></span>
       <div class="seg" id="seg-para">
         <button data-v="1">Sin</button><button data-v="1.8">Normal</button><button data-v="2.6">Larga</button>
+      </div>
+    </div>
+    <div class="set-row">
+      <span><div class="set-label">Respiro entre párrafos</div><div class="set-hint">Frame en blanco (más largo que el de oración) al cambiar de párrafo</div></span>
+      <div class="seg" id="seg-parablank">
+        <button data-v="0">Sin</button><button data-v="1.2">Normal</button><button data-v="2">Largo</button>
       </div>
     </div>
   </div>
@@ -492,10 +531,21 @@ function orpIndex(w) {
   while(end>m.index && !/[\p{L}\p{N}]/u.test(w[end])) end--;
   return m.index+orpCoreIndex(end-m.index+1);
 }
+// Cuenta de sílabas del español ≈ grupos de vocales (diptongos cuentan como 1).
+// Barato y suficiente para modular el timing (Fase 4, opt-in).
+function syllableCount(w){
+  const m=w.toLowerCase().match(/[aeiouáéíóúü]+/g);
+  return m?m.length:1;
+}
 function wordDelay(w, base) {
   const len = [...w].length;
   let f;
-  if (len <= 1) f = 0.70;
+  if (settings.syllable) {
+    // Curva por sílabas (opt-in): en español el costo de decodificación escala
+    // con sílabas más que con letras. Por defecto va la curva por caracteres.
+    f = Math.min(1.45, 0.70 + 0.16 * syllableCount(w));
+  }
+  else if (len <= 1) f = 0.70;
   else if (len === 2) f = 0.78;
   else if (len === 3) f = 0.86;
   else if (len === 4) f = 0.92;
@@ -508,14 +558,17 @@ function wordDelay(w, base) {
   // se leen carácter a carácter).
   if (/\d/.test(w)) f *= 1.3;
   else if (len >= 2 && !/\p{Ll}/u.test(w) && /\p{Lu}.*\p{Lu}/su.test(w)) f *= 1.2;
+  // Lingering de puntuación. El modo comprensión lo agranda: más tiempo de
+  // digestión justo en las fronteras, que es donde la comprensión lo necesita.
+  const cm = settings.compMode;
   const last = w[w.length - 1];
-  if (w.endsWith('...') || w.endsWith('\u2026')) f *= 1.55;
-  else if ('.!?'.includes(last)) f *= 1.85;
-  else if (last === ';' || last === ':') f *= 1.5;
-  else if (last === ',') f *= 1.35;
-  else if ('\u2014\u2013-'.includes(last)) f *= 1.3;
-  else if (')]\u201d\u00bb'.includes(last)) f *= 1.15;
-  else if ('\u00bf\u00a1'.includes(last)) f *= 1.2;
+  if (w.endsWith('...') || w.endsWith('\u2026')) f *= cm ? 1.9 : 1.55;
+  else if ('.!?'.includes(last)) f *= cm ? 2.25 : 1.85;
+  else if (last === ';' || last === ':') f *= cm ? 1.8 : 1.5;
+  else if (last === ',') f *= cm ? 1.6 : 1.35;
+  else if ('\u2014\u2013-'.includes(last)) f *= cm ? 1.45 : 1.3;
+  else if (')]\u201d\u00bb'.includes(last)) f *= cm ? 1.3 : 1.15;
+  else if ('\u00bf\u00a1'.includes(last)) f *= cm ? 1.35 : 1.2;
   return base * f;
 }
 // Tokeniza recordando qué palabras cierran un párrafo: split(/\s+/) colapsa los
@@ -627,7 +680,9 @@ window.app = app;
 // no en la velocidad sostenida — por eso rampa de arranque y rebobinado al reanudar.
 const RAMP_WORDS=10, RAMP_EXTRA=0.7; // arranca a ~59% de la velocidad, acelera en 10 palabras
 const GROUP_WPM=400;                 // desde acá se agrupan palabras cortas ("a la", "en el")
+const GROUP_MAX=3, GROUP_CHARS=12, SHORT_FN=3; // chunking por frase: hasta 3 palabras, ≤12 chars, arranca en palabra corta (≤3)
 const BLANK_FACTOR=0.7;              // frame en blanco tras cada oración, en fracción del delay base
+const COMP_BLANK_BOOST=1.3;          // modo comprensión: alarga los frames en blanco un 30%
 
 // ==================== READING SETTINGS ====================
 // Comportamientos del flujo con "gusto personal", configurables desde el
@@ -636,9 +691,15 @@ const SETTINGS_DEFAULTS={
   ramp:true,      // rampa de arranque
   blank:true,     // frame en blanco entre oraciones
   group:true,     // agrupar palabras cortas a ≥GROUP_WPM
-  paraDot:true,   // puntito de frontera de párrafo
+  paraDot:true,   // dinkus (• • •) de frontera de párrafo
   rewind:4,       // palabras de contexto al reanudar (0 = sin rebobinado)
   paraPause:1.8,  // multiplicador de pausa al cerrar un párrafo (1 = sin pausa)
+  paraBlank:1.2,  // frame en blanco al cambiar de párrafo, en fracción del delay base (0 = sin)
+  sentence:true,  // resaltar la oración actual en el panel de texto de abajo
+  navSentence:true, // ← / → y tap-zones saltan por oración (regresión con sentido) en vez de ±10 palabras
+  compMode:false,   // modo comprensión: más tiempo de digestión en cada frontera (puntuación + respiros)
+  syllable:false,   // timing por sílabas en vez de por caracteres (opt-in — redundante con la curva por largo)
+  dialogue:true,    // marca visual de diálogo (— al inicio de párrafo) en el panel de texto
 };
 let settings={...SETTINGS_DEFAULTS};
 try { settings={...SETTINGS_DEFAULTS,...JSON.parse(localStorage.getItem('spritz-settings')||'{}')}; }
@@ -648,18 +709,31 @@ function saveSettings(){ try{ localStorage.setItem('spritz-settings',JSON.string
 // ¿Termina una oración? (con posibles comillas/paréntesis de cierre detrás)
 function sentenceEnd(u){ return /[.!?…]["»”')\]]*$/.test(u); }
 
-// Agrupado de palabras cortas a WPM altos: mostrar "a" solo 70ms es ruido —
-// "a la", "en el" se leen como una sola fijación. Nunca cruza puntuación ni
-// fronteras de párrafo, y el par entra siempre sin trocear (≤9 chars).
+// Chunking por frase a WPM altos: mostrar "a" solo 70ms es ruido — "a la",
+// "en el bosque" se leen como una sola fijación. Es agrupado ESPACIAL (cómo
+// lee un lector experto), no timing irregular, así que no "sacude" el flujo.
+// Reglas: arranca en palabra corta (≤SHORT_FN) para no pegar dos palabras de
+// contenido; extiende mientras la anterior sea corta; corta en la primera
+// palabra "larga" (cierra la frase) o en puntuación; nunca mete la palabra que
+// cierra párrafo (esa debe mostrarse sola para su pausa/dinkus); tope de chars.
 function groupCount(i){
   if(!settings.group||app.wpm<GROUP_WPM) return 1;
-  const w1=app.words[i], w2=app.words[i+1];
-  if(!w1||!w2) return 1;
-  if([...w1].length>3) return 1;
-  if(/[.,;:!?…—–\-"»”')\]]$/.test(w1)) return 1;
-  if(app.paraEnds&&(app.paraEnds.has(i)||app.paraEnds.has(i+1))) return 1;
-  if([...w1].length+1+[...w2].length>9) return 1;
-  return 2;
+  if(!app.words[i]) return 1;
+  if(app.paraEnds&&app.paraEnds.has(i)) return 1;           // cierre de párrafo → solo
+  if([...app.words[i]].length>SHORT_FN) return 1;           // no arrancar en palabra de contenido
+  let n=1, chars=[...app.words[i]].length;
+  while(n<GROUP_MAX && i+n<app.words.length){
+    const prev=app.words[i+n-1], w=app.words[i+n];
+    if([...prev].length>SHORT_FN) break;                    // solo extendemos desde palabras cortas
+    if(/[.,;:!?…—–\-"»”')\]¿¡]$/.test(prev)) break;         // no cruzar puntuación
+    if(app.paraEnds&&app.paraEnds.has(i+n)) break;          // no absorber el cierre de párrafo
+    const wlen=[...w].length;
+    if(chars+1+wlen>GROUP_CHARS) break;                     // tope de ancho de fijación
+    chars+=1+wlen; n++;
+    if(wlen>SHORT_FN) break;                                // la palabra de contenido cierra la frase
+    if(/[.,;:!?…—–\-"»”')\]]$/.test(w)) break;
+  }
+  return n;
 }
 
 // ==================== WAKE LOCK ====================
@@ -1025,6 +1099,16 @@ async function loadChapter(bookId,chIdx,fromWord=0) {
 }
 
 // ==================== SPLIT READER ====================
+// Descubrir el tap-to-seek: tocar una palabra del panel de abajo para saltar
+// ahí (regresión con contexto) ya existía pero era invisible. Hint una sola
+// vez, persistido — el panel de texto sincronizado es el diferencial de Pivot.
+function maybeShowSeekHint(){
+  try {
+    if(localStorage.getItem('spritz-hint-seek')) return;
+    localStorage.setItem('spritz-hint-seek','1');
+    showToast('Tip: tocá una palabra del texto de abajo para saltar a ese punto.', 'info', 6000);
+  } catch(err){ /* no crítico */ }
+}
 function startReading(text, title, fromWord=0) {
   const {words,paraEnds}=tokenizeWithParas(text);
   if(!words.length){
@@ -1048,6 +1132,7 @@ function startReading(text, title, fromWord=0) {
 
   showView('view-reader');
   loadingEl.classList.remove('active');
+  maybeShowSeekHint();
 
   requestAnimationFrame(()=>{
     applySplit();
@@ -1059,21 +1144,45 @@ function startReading(text, title, fromWord=0) {
 
 let _wordSpans = [];
 let _currentSpanIdx = -1;
+// Rangos de oración (palabra→índice de oración) para resaltar la oración actual.
+let _sentRanges = [];
+let _sentOf = [];
+let _currentSentIdx = -1;
 
 function renderEreaderText(text) {
   const paragraphs = text.split(/\n+/).filter(p => p.trim());
   let idx = 0;
   const html = paragraphs.map(p => {
-    const words = p.trim().split(/\s+/).filter(w => w.length > 0);
+    const t = p.trim();
+    const words = t.split(/\s+/).filter(w => w.length > 0);
     const spans = words.map(w => `<span class="w" data-i="${idx++}">${esc(w)}</span>`);
-    return `<p>${spans.join(' ')}</p>`;
+    // Marca de diálogo: en el rioplatense el parlamento abre con raya (—). Un
+    // acento sutil a la izquierda del párrafo ayuda a seguir los cambios de hablante.
+    const dlg = /^[—–-]/.test(t) ? ' class="dlg"' : '';
+    return `<p${dlg}>${spans.join(' ')}</p>`;
   }).join('');
   splitReader.innerHTML = html;
+  splitReader.classList.toggle('dlg-on', !!settings.dialogue);
   _wordSpans = Array.from(splitReader.querySelectorAll('.w'));
   _currentSpanIdx = -1;
   if (_wordSpans.length !== app.words.length) {
     console.warn('[spritz] word/span count mismatch:', _wordSpans.length, 'spans vs', app.words.length, 'tokens');
   }
+  // Rangos de oración: una oración cierra donde sentenceEnd() da true o al
+  // cerrar párrafo. Se computa una vez sobre app.words (mismo orden que los
+  // spans) y mapea cada palabra a su oración, para el resaltado de contexto.
+  _sentRanges = []; _sentOf = new Array(app.words.length).fill(0);
+  let _ss = 0;
+  for (let i = 0; i < app.words.length; i++) {
+    const boundary = sentenceEnd(app.words[i]) || (app.paraEnds && app.paraEnds.has(i));
+    if (boundary || i === app.words.length - 1) {
+      const ri = _sentRanges.length;
+      for (let k = _ss; k <= i; k++) _sentOf[k] = ri;
+      _sentRanges.push([_ss, i]);
+      _ss = i + 1;
+    }
+  }
+  _currentSentIdx = -1;
 }
 
 function updateEreaderHighlight() {
@@ -1081,8 +1190,8 @@ function updateEreaderHighlight() {
   const oldIdx = _currentSpanIdx;
   if (oldIdx === newIdx) return;
   if (oldIdx >= 0 && oldIdx < _wordSpans.length) {
-    _wordSpans[oldIdx].classList.remove('current');
-    if (_wordSpans[oldIdx+1]) _wordSpans[oldIdx+1].classList.remove('current'); // segunda palabra de un par agrupado
+    // limpia 'current' de la unidad anterior (grupo de hasta GROUP_MAX palabras)
+    for (let k = 0; k < GROUP_MAX && oldIdx+k < _wordSpans.length; k++) _wordSpans[oldIdx+k].classList.remove('current');
   }
   if (newIdx > oldIdx) {
     for (let i = Math.max(0, oldIdx); i < newIdx && i < _wordSpans.length; i++) {
@@ -1094,14 +1203,32 @@ function updateEreaderHighlight() {
     }
   }
   if (newIdx >= 0 && newIdx < _wordSpans.length) {
-    _wordSpans[newIdx].classList.add('current');
-    _wordSpans[newIdx].classList.remove('passed');
-    if (app.group===2 && _wordSpans[newIdx+1]) { // el par agrupado se resalta entero
-      _wordSpans[newIdx+1].classList.add('current');
-      _wordSpans[newIdx+1].classList.remove('passed');
+    // la unidad actual (frase agrupada) se resalta entera
+    const g = app.group || 1;
+    for (let k = 0; k < g && newIdx+k < _wordSpans.length; k++) {
+      _wordSpans[newIdx+k].classList.add('current');
+      _wordSpans[newIdx+k].classList.remove('passed');
     }
   }
   _currentSpanIdx = newIdx;
+  updateSentenceHighlight();
+}
+
+// Resalta la oración actual entera en el panel: al bajar la vista o pausar, ves
+// la oración completa (no solo la palabra roja) y reconstruís el contexto. Solo
+// toca el DOM al cruzar frontera de oración — O(1) mientras leés dentro de una.
+function updateSentenceHighlight() {
+  const si = (settings.sentence && app.index >= 0 && app.index < _sentOf.length) ? _sentOf[app.index] : -1;
+  if (si === _currentSentIdx) return;
+  if (_currentSentIdx >= 0 && _sentRanges[_currentSentIdx]) {
+    const [a, b] = _sentRanges[_currentSentIdx];
+    for (let i = a; i <= b && i < _wordSpans.length; i++) _wordSpans[i].classList.remove('sentence');
+  }
+  if (si >= 0 && _sentRanges[si]) {
+    const [a, b] = _sentRanges[si];
+    for (let i = a; i <= b && i < _wordSpans.length; i++) _wordSpans[i].classList.add('sentence');
+  }
+  _currentSentIdx = si;
 }
 
 function scrollToSpan(idx, opts = { block: 'center' }) {
@@ -1155,7 +1282,8 @@ function displayCurrentWord() {
 // app.group queda congelado en displayCurrentWord para que el avance de tick
 // consuma exactamente lo que se mostró (aunque el WPM cambie en el medio).
 function currentUnit() {
-  if(app.group===2&&app.index+1<app.words.length) return app.words[app.index]+' '+app.words[app.index+1];
+  const g=app.group||1;
+  if(g>1&&app.index+g<=app.words.length) return app.words.slice(app.index,app.index+g).join(' ');
   return app.words[app.index]??'';
 }
 function currentChunks() { return chunkWord(currentUnit()); }
@@ -1163,15 +1291,25 @@ function currentChunks() { return chunkWord(currentUnit()); }
 function tick() {
   if(!app.playing) return;
   const chunks=currentChunks();
-  // Frame en blanco tras cada oración: un respiro visual que segmenta la
-  // memoria de trabajo (práctica Spritz). Solo al terminar la unidad completa.
-  if(settings.blank&&!app.blank&&app.sub>=chunks.length-1&&sentenceEnd(currentUnit())&&app.index+(app.group||1)<app.words.length){
-    app.blank=true;
-    wordDisplay.innerHTML='<span class="word-inner">&nbsp;</span>';
-    const blankMs=60000/app.wpm*BLANK_FACTOR;
-    _pend.ms+=blankMs;
-    app.timer=setTimeout(tick, blankMs);
-    return;
+  // Frame en blanco al terminar la unidad completa: un respiro que segmenta la
+  // memoria de trabajo (práctica Spritz). El de párrafo es más largo que el de
+  // oración y funciona como beat de consolidación; como todo párrafo termina en
+  // oración, la frontera de párrafo se resuelve primero para que gane el respiro
+  // largo. El dinkus (para-dot) queda visible durante el blanco (es un elemento
+  // aparte de word-display), así el corte de sección se ve de punta a punta.
+  if(!app.blank&&app.sub>=chunks.length-1&&app.index+(app.group||1)<app.words.length){
+    const paraEnd=app.paraEnds&&app.paraEnds.has(app.index);
+    const factor=(settings.paraBlank>0&&paraEnd) ? settings.paraBlank
+               : (settings.blank&&sentenceEnd(currentUnit())) ? BLANK_FACTOR
+               : 0;
+    if(factor>0){
+      app.blank=true;
+      wordDisplay.innerHTML='<span class="word-inner">&nbsp;</span>';
+      const blankMs=60000/app.wpm*factor*(settings.compMode?COMP_BLANK_BOOST:1);
+      _pend.ms+=blankMs;
+      app.timer=setTimeout(tick, blankMs);
+      return;
+    }
   }
   app.blank=false;
   if(app.sub<chunks.length-1){ app.sub++; }
@@ -1213,27 +1351,49 @@ function stop() {
   releaseWakeLock();
   if(app.bookId) saveProgress();
   flushStats();
+  maybeScrollToCurrent(); // al pausar, dejá la posición visible para leer alrededor (contexto)
 }
 // Reanudar tras una pausa retrocede unas palabras para recuperar el hilo sin
 // el skip(-10) manual. Solo aplica a resume (no al arranque ni a los saltos).
 function resumeWithContext() {
-  if(settings.rewind>0&&app.hasPlayed&&app.index>0&&app.index<app.words.length){
-    app.index=Math.max(0,app.index-settings.rewind); app.sub=0;
+  if(app.hasPlayed&&app.index>0&&app.index<app.words.length){
+    if(settings.rewind===-1) app.index=sentenceStart(app.index);       // reanudar al inicio de la oración
+    else if(settings.rewind>0) app.index=Math.max(0,app.index-settings.rewind);
+    app.sub=0;
   }
   play();
 }
 function togglePlay() { app.playing?stop():resumeWithContext(); }
 function reset() { stop(); app.index=0; app.sub=0; displayCurrentWord(); scrollToSpan(0); }
-function skip(n) {
+function skipTo(target) {
   const wasPlaying=app.playing;
   stop();
-  app.index=Math.max(0,Math.min(app.words.length-1,app.index+n));
+  app.index=Math.max(0,Math.min(app.words.length-1,target));
   app.sub=0;
   displayCurrentWord();
   scrollToSpan(app.index);
   debouncedSave();
   if(wasPlaying) play(4); // rampa corta: el salto ya te ubicó, no hace falta arrancar tan lento
 }
+function skip(n) { skipTo(app.index+n); }
+// Navegación consciente de oración (regresión con sentido — el limitante #1 del
+// RSVP): ← vuelve al inicio de esta oración, o a la anterior si ya estás en el
+// inicio; → salta al inicio de la siguiente. Reusa los rangos de oración del panel.
+function sentenceStart(idx){
+  if(!_sentRanges.length||idx<0||idx>=_sentOf.length) return Math.max(0,idx);
+  return _sentRanges[_sentOf[idx]][0];
+}
+function skipSentence(dir){
+  if(!_sentRanges.length){ skip(dir*10); return; }
+  const cur=Math.min(Math.max(app.index,0),_sentOf.length-1);
+  const si=_sentOf[cur];
+  let target;
+  if(dir<0) target=(app.index>_sentRanges[si][0]) ? _sentRanges[si][0] : (si>0?_sentRanges[si-1][0]:0);
+  else target=(si<_sentRanges.length-1) ? _sentRanges[si+1][0] : _sentRanges[si][0];
+  skipTo(target);
+}
+// ± navegación: por oración (default) o ±10 palabras (legacy), según settings.
+function nav(dir){ settings.navSentence ? skipSentence(dir) : skip(dir*10); }
 
 function seekToWord(i) {
   const target = Math.max(0, Math.min(app.words.length - 1, i));
@@ -1350,6 +1510,7 @@ function syncSettingsUI(){
   settingsBackdrop.querySelectorAll('input[data-set]').forEach(cb=>{ cb.checked=!!settings[cb.dataset.set]; });
   $('#seg-rewind').querySelectorAll('button').forEach(b=>b.classList.toggle('active',parseFloat(b.dataset.v)===settings.rewind));
   $('#seg-para').querySelectorAll('button').forEach(b=>b.classList.toggle('active',parseFloat(b.dataset.v)===settings.paraPause));
+  $('#seg-parablank').querySelectorAll('button').forEach(b=>b.classList.toggle('active',parseFloat(b.dataset.v)===settings.paraBlank));
 }
 $('#btn-settings').addEventListener('click',()=>{ syncSettingsUI(); settingsBackdrop.classList.add('open'); });
 settingsBackdrop.addEventListener('click',e=>{ if(e.target===settingsBackdrop) settingsBackdrop.classList.remove('open'); });
@@ -1357,6 +1518,8 @@ settingsBackdrop.querySelectorAll('input[data-set]').forEach(cb=>{
   cb.addEventListener('change',()=>{
     settings[cb.dataset.set]=cb.checked; saveSettings();
     if(cb.dataset.set==='paraDot'&&!cb.checked) paraDot.classList.remove('show');
+    if(cb.dataset.set==='sentence') updateSentenceHighlight();
+    if(cb.dataset.set==='dialogue') splitReader.classList.toggle('dlg-on', cb.checked);
   });
 });
 $('#seg-rewind').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
@@ -1364,6 +1527,9 @@ $('#seg-rewind').querySelectorAll('button').forEach(b=>b.addEventListener('click
 }));
 $('#seg-para').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
   settings.paraPause=parseFloat(b.dataset.v); saveSettings(); syncSettingsUI();
+}));
+$('#seg-parablank').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
+  settings.paraBlank=parseFloat(b.dataset.v); saveSettings(); syncSettingsUI();
 }));
 $('#btn-prev-ch').addEventListener('click',()=>{if(!app.bookId||app.chapterIdx<=0)return;stop();loadChapter(app.bookId,app.chapterIdx-1);});
 $('#btn-next-ch').addEventListener('click',()=>{if(!app.bookId||app.chapterIdx>=app.totalChapters-1)return;stop();loadChapter(app.bookId,app.chapterIdx+1);});
@@ -1376,8 +1542,8 @@ document.addEventListener('keydown',e=>{
   }
   if(!$('#view-reader').classList.contains('active'))return;
   if(e.code==='Space'){e.preventDefault();togglePlay();}
-  if(e.code==='ArrowLeft')skip(-10);
-  if(e.code==='ArrowRight')skip(10);
+  if(e.code==='ArrowLeft')nav(-1);
+  if(e.code==='ArrowRight')nav(1);
   if(e.code==='KeyR')reset();
   if(e.code==='Escape')closeReader();
 });
@@ -1387,8 +1553,8 @@ document.addEventListener('keydown',e=>{
 splitRsvp.addEventListener('click',e=>{
   const r=splitRsvp.getBoundingClientRect();
   const x=(e.clientX-r.left)/r.width;
-  if(x<0.25) skip(-10);
-  else if(x>0.75) skip(10);
+  if(x<0.25) nav(-1);
+  else if(x>0.75) nav(1);
   else togglePlay();
 });
 

@@ -4,6 +4,55 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.14.0] - 2026-07-13
+
+Comprehension-first batch: lean into Pivot's real differentiator — the synced
+dual panel (RSVP stream + full text) — and defend against RSVP's structural
+weakness (no regressions), instead of chasing raw speed.
+
+### Added
+
+- **Sentence-aware navigation.** ← / → and the side tap-zones now jump by
+  sentence (to the start of the current sentence, or the previous/next one)
+  instead of ±10 arbitrary words — regression with meaning, the single biggest
+  comprehension lever in RSVP. Toggle "Navegar por oración" (on by default).
+- **Resume at sentence start.** New "Oración" option in the resume-rewind
+  control: after a pause, resume from the start of the current sentence for a
+  natural re-entry (instead of a fixed word count).
+- **Current-sentence highlight in the text panel.** The whole current sentence
+  lights up bright (past sentences dim, upcoming medium, current word red), so
+  glancing down or pausing rebuilds the spatial map instantly. Toggle
+  "Resaltar oración". Sentence ranges are precomputed once; the highlight
+  updates incrementally (O(1) while reading within a sentence).
+- **Tap-to-seek hint.** A one-time tip surfaces the existing (but invisible)
+  regression-with-context gesture: tap any word in the text panel to jump there.
+- **Phrase grouping.** Short-word grouping now extends to phrases of up to 3
+  words ("en el bosque") at ≥400 WPM — spatial grouping like a skilled reader,
+  never crossing punctuation or paragraph boundaries. Presentation-only:
+  `app.index` and saved progress still count real words.
+- **Comprehension mode.** Optional toggle that lengthens every boundary pause
+  (punctuation lingers ×, and blank frames ×1.3) to give dense material more
+  digestion time — where comprehension actually needs it.
+- **Paragraph blank frame.** A longer blank frame at paragraph boundaries
+  (configurable "Respiro entre párrafos": off / normal / long) — a temporal
+  consolidation beat, more perceptible than a dot.
+- **Dialogue cue.** Paragraphs opening with a dash (— rioplatense speech) get a
+  subtle left accent in the text panel to track speaker changes. Toggle
+  "Marca de diálogo".
+- **Syllable-based timing** (experimental, opt-in): pace by syllable count
+  instead of character length — closer to Spanish decoding cost.
+
+### Changed
+
+- **Paragraph marker is now a dinkus (• • •).** The single 8px dot sat at the
+  reticle's lower tip and read as a "drip" — nearly imperceptible. Three
+  horizontal dots (the typographic section-break symbol), larger and raised,
+  no longer collide with the vertical reticle and catch peripheral vision.
+- On pause, the text panel scrolls to keep the current position visible so you
+  can read around it.
+
+SW cache bumped to `pivot-v21`.
+
 ## [0.13.0] - 2026-07-13
 
 ### Added
